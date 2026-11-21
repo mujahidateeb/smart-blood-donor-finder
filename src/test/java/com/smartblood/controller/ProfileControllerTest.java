@@ -14,6 +14,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Set;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -59,7 +61,8 @@ class ProfileControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("profile"))
                 .andExpect(model().attributeExists("user"))
-                .andExpect(model().attributeExists("bloodGroups"));
+                .andExpect(model().attributeExists("bloodGroups"))
+                .andExpect(model().attributeExists("allRoles"));
     }
 
     @Test
@@ -90,6 +93,46 @@ class ProfileControllerTest {
 
     @Test
     @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void postProfile_withUpdatedRoles_success() throws Exception {
+        AppUser savedUser = new AppUser();
+        savedUser.setEmail("donor@example.com");
+        savedUser.setFullName("Donor and Patient");
+        savedUser.setRoles(Set.of(Role.DONOR, Role.PATIENT));
+
+        when(userService.updateProfile(eq("donor@example.com"), any(AppUser.class), eq(Set.of(Role.DONOR, Role.PATIENT)), eq(null)))
+                .thenReturn(savedUser);
+
+        mockMvc.perform(post("/profile")
+                        .with(csrf())
+                        .param("fullName", "Donor and Patient")
+                        .param("email", "donor@example.com")
+                        .param("bloodGroup", "O_POSITIVE")
+                        .param("city", "Bengaluru")
+                        .param("rolesSubmitted", "true")
+                        .param("selectedRoles", "DONOR", "PATIENT"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"))
+                .andExpect(flash().attribute("success", "Profile updated successfully."));
+
+        verify(userService).updateProfile(eq("donor@example.com"), any(AppUser.class), eq(Set.of(Role.DONOR, Role.PATIENT)), eq(null));
+    }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void postProfile_withNoRolesSelected_redirectsWithError() throws Exception {
+        mockMvc.perform(post("/profile")
+                        .with(csrf())
+                        .param("fullName", "Donor User")
+                        .param("email", "donor@example.com")
+                        .param("city", "Bengaluru")
+                        .param("rolesSubmitted", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"))
+                .andExpect(flash().attribute("error", "Please select at least one role (Donor and/or Patient)."));
+    }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
     void postProfile_validationFailure_redirectsWithError() throws Exception {
         when(userService.updateProfile(eq("donor@example.com"), any(AppUser.class), eq(null)))
                 .thenThrow(new IllegalArgumentException("City cannot be empty."));
@@ -102,5 +145,63 @@ class ProfileControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"))
                 .andExpect(flash().attribute("error", "City cannot be empty."));
+    }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void addRole_activatesRoleAndRedirectsToDashboardTab() throws Exception {
+        AppUser updated = new AppUser();
+        updated.setEmail("donor@example.com");
+        updated.setRoles(Set.of(Role.DONOR, Role.PATIENT));
+
+        when(userService.addRoleToUser("donor@example.com", Role.PATIENT)).thenReturn(updated);
+
+        mockMvc.perform(post("/profile/roles/add")
+                        .with(csrf())
+                        .param("role", "PATIENT"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/dashboard?tab=patient"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(userService).addRoleToUser("donor@example.com", Role.PATIENT);
+    }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void addRole_withRedirectUrl_redirectsToSpecifiedUrl() throws Exception {
+        AppUser updated = new AppUser();
+        updated.setEmail("donor@example.com");
+        updated.setRoles(Set.of(Role.DONOR, Role.PATIENT));
+
+        when(userService.addRoleToUser("donor@example.com", Role.PATIENT)).thenReturn(updated);
+
+        mockMvc.perform(post("/profile/roles/add")
+                        .with(csrf())
+                        .param("role", "PATIENT")
+                        .param("redirectUrl", "/profile"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(userService).addRoleToUser("donor@example.com", Role.PATIENT);
+    }
+
+    @Test
+    @WithMockUser(username = "dual@example.com", roles = {"DONOR", "PATIENT"})
+    void removeRole_removesRoleAndRedirectsToDashboard() throws Exception {
+        AppUser updated = new AppUser();
+        updated.setEmail("dual@example.com");
+        updated.setRoles(Set.of(Role.DONOR));
+
+        when(userService.removeRoleFromUser("dual@example.com", Role.PATIENT)).thenReturn(updated);
+
+        mockMvc.perform(post("/profile/roles/remove")
+                        .with(csrf())
+                        .param("role", "PATIENT"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/dashboard"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(userService).removeRoleFromUser("dual@example.com", Role.PATIENT);
     }
 }

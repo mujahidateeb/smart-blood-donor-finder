@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class DashboardController {
@@ -17,14 +18,28 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Authentication auth, Model model) {
+    public String dashboard(@RequestParam(required = false) String tab, Authentication auth, Model model) {
         AppUser user = users.byEmail(auth.getName());
         model.addAttribute("user", user);
-        if (user.getRole() == Role.PATIENT) model.addAttribute("requests", requests.forPatient(user.getId()));
-        if (user.getRole() == Role.DONOR) {
-            model.addAttribute("openRequests", requests.openRequests());
-            model.addAttribute("myAcceptedRequests", requests.forDonor(user.getId()));
+
+        model.addAttribute("requests", requests.forPatient(user.getId()));
+        model.addAttribute("openRequests", requests.openRequests());
+        model.addAttribute("myAcceptedRequests", requests.forDonor(user.getId()));
+
+        String activeTab = tab;
+        if (activeTab == null || activeTab.trim().isEmpty()) {
+            if (user.hasRole(Role.DONOR)) {
+                activeTab = "donor";
+            } else if (user.hasRole(Role.PATIENT)) {
+                activeTab = "patient";
+            } else {
+                activeTab = "donor";
+            }
+        } else {
+            activeTab = activeTab.trim().toLowerCase();
         }
+        model.addAttribute("activeTab", activeTab);
+
         return "dashboard";
     }
 }

@@ -7,7 +7,8 @@
   <a class="brand" href="/">🩸 Smart Blood Finder</a>
   <div class="navlinks">
     <a href="/donors">Find Donors</a>
-    <a href="/dashboard" sec:authorize="isAuthenticated()">Dashboard</a>
+    <a href="/dashboard?tab=donor" sec:authorize="isAuthenticated()">Donor Portal</a>
+    <a href="/dashboard?tab=patient" sec:authorize="isAuthenticated()">Patient Portal</a>
     <a href="/admin" sec:authorize="hasRole('ADMIN')">Admin</a>
     <a href="/profile" sec:authorize="isAuthenticated()">Profile</a>
 

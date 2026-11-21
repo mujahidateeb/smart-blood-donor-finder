@@ -4,6 +4,7 @@ import com.smartblood.model.AppUser;
 import com.smartblood.model.BloodGroup;
 import com.smartblood.model.BloodRequest;
 import com.smartblood.model.RequestStatus;
+import com.smartblood.model.Role;
 import com.smartblood.service.BloodRequestService;
 import com.smartblood.service.UserService;
 import org.springframework.security.core.Authentication;
@@ -11,6 +12,9 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.HashSet;
+import java.util.List;
 
 @Controller
 @RequestMapping("/admin")
@@ -36,13 +40,21 @@ public class AdminController {
     public String editUser(@PathVariable Long id, Model model) {
         model.addAttribute("user", users.byId(id));
         model.addAttribute("bloodGroups", BloodGroup.values());
+        model.addAttribute("allRoles", Role.values());
         return "admin-user-edit";
     }
 
     @PostMapping("/users/{id}")
-    public String updateUser(@PathVariable Long id, @ModelAttribute AppUser data, RedirectAttributes redirect) {
+    public String updateUser(@PathVariable Long id,
+                             @ModelAttribute AppUser data,
+                             @RequestParam(name = "selectedRoles", required = false) List<Role> selectedRoles,
+                             RedirectAttributes redirect) {
         try {
-            users.updateByAdmin(id, data);
+            if (selectedRoles != null && !selectedRoles.isEmpty()) {
+                users.updateByAdmin(id, data, new HashSet<>(selectedRoles));
+            } else {
+                users.updateByAdmin(id, data);
+            }
             redirect.addFlashAttribute("success", "User details updated.");
             return "redirect:/admin/users";
         } catch (IllegalArgumentException e) {

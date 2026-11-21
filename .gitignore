@@ -5,3 +5,9 @@ target/
 .settings/
 *.log
 .env
+node_modules/
+screenshots/
+capture_screenshots.mjs
+generate_pptx.cjs
+generate_docx.cjs
+PRESENTATION_DECK.ppsx

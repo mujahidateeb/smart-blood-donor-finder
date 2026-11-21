@@ -15,16 +15,45 @@
             <div>
                 <span class="eyebrow">YOUR ACCOUNT</span>
                 <h1>Update Profile</h1>
-                <p class="muted">Manage your personal information, contact details, and donation status.</p>
+                <p class="muted">Manage your personal information, roles, and donation status.</p>
             </div>
-            <div>
-                <span class="status" th:text="${user.role}">DONOR</span>
+            <div class="role-badges">
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).DONOR)}" class="role-chip chip-donor">🩸 Donor</span>
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}" class="role-chip chip-patient">🏥 Patient</span>
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).ADMIN)}" class="role-chip chip-admin">⚙️ Admin</span>
             </div>
         </div>
 
         <div th:replace="fragments :: alerts"></div>
 
+        <!-- Quick 1-Click Role Enable Banner if user is missing either Donor or Patient role -->
+        <div th:unless="${user.hasRole(T(com.smartblood.model.Role).DONOR)}" class="role-cta-card" style="padding:16px 20px;margin:15px 0 25px 0;text-align:left;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+                <b style="font-size:15px;">🩸 Want to donate blood too?</b>
+                <p class="muted" style="margin:2px 0 0 0;font-size:13px;">Activate the Donor role to accept emergency requests and appear in donor searches.</p>
+            </div>
+            <form th:action="@{/profile/roles/add}" method="post" style="margin:0;">
+                <input type="hidden" name="role" value="DONOR">
+                <input type="hidden" name="redirectUrl" value="/profile">
+                <button type="submit" class="btn primary" style="white-space:nowrap;">+ Enable Donor Role</button>
+            </form>
+        </div>
+
+        <div th:unless="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}" class="role-cta-card" style="padding:16px 20px;margin:15px 0 25px 0;text-align:left;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+            <div>
+                <b style="font-size:15px;">🏥 Need blood or want to request blood too?</b>
+                <p class="muted" style="margin:2px 0 0 0;font-size:13px;">Activate the Patient role to publish emergency blood requests for yourself or others.</p>
+            </div>
+            <form th:action="@{/profile/roles/add}" method="post" style="margin:0;">
+                <input type="hidden" name="role" value="PATIENT">
+                <input type="hidden" name="redirectUrl" value="/profile">
+                <button type="submit" class="btn primary" style="white-space:nowrap;">+ Enable Patient Role</button>
+            </form>
+        </div>
+
         <form th:action="@{/profile}" th:object="${user}" method="post">
+            <input type="hidden" name="rolesSubmitted" value="true">
+
             <div class="form-grid">
                 <div>
                     <label for="fullName">Full name</label>
@@ -53,7 +82,30 @@
                     <input id="area" th:field="*{area}" placeholder="Area or neighborhood">
                 </div>
 
-                <div class="span-2" th:if="${user.role.name() == 'DONOR'}">
+                <!-- Role Selection Section -->
+                <div class="span-2">
+                    <label>Account Roles (Update your roles anytime):</label>
+                    <div class="role-selection-group">
+                        <label class="checkbox-row">
+                            <input type="checkbox" name="selectedRoles" value="DONOR" id="role-donor" th:checked="${user.hasRole(T(com.smartblood.model.Role).DONOR)}">
+                            <div>
+                                <b>🩸 Blood Donor</b>
+                                <small class="muted">Enable donor portal, view open emergency blood requests, and appear in search results.</small>
+                            </div>
+                        </label>
+                        <label class="checkbox-row">
+                            <input type="checkbox" name="selectedRoles" value="PATIENT" id="role-patient" th:checked="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}">
+                            <div>
+                                <b>🏥 Patient / Requester</b>
+                                <small class="muted">Enable patient portal and create emergency blood requests for yourself or others.</small>
+                            </div>
+                        </label>
+                    </div>
+                    <small class="muted" style="margin-top:6px;display:block;">* You can select one or both roles. A user can be both a Donor and a Patient at the same time.</small>
+                </div>
+
+                <!-- Donation Availability Section: dynamically shown when Donor is selected -->
+                <div class="span-2" id="donorAvailabilitySection" th:style="${user.hasRole(T(com.smartblood.model.Role).DONOR)} ? '' : 'display:none;'">
                     <div class="checkbox-row">
                         <input type="checkbox" id="availableToDonate" th:field="*{availableToDonate}">
                         <div>

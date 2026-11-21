@@ -12,7 +12,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -150,5 +152,95 @@ class UserServiceTest {
         );
 
         assertTrue(ex.getMessage().contains("already registered"));
+    }
+
+    @Test
+    void register_withMultipleRoles() {
+        when(userRepository.existsByEmail("multi@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser user = new AppUser();
+        user.setEmail("multi@example.com");
+        user.setPassword("password123");
+        user.setRoles(Set.of(Role.DONOR, Role.PATIENT));
+
+        AppUser registered = userService.register(user);
+
+        assertTrue(registered.hasRole(Role.DONOR));
+        assertTrue(registered.hasRole(Role.PATIENT));
+        assertTrue(registered.isDonor());
+        assertTrue(registered.isPatient());
+        assertTrue(registered.getAvailableToDonate());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void register_rejectAdmin() {
+        AppUser adminUser = new AppUser();
+        adminUser.setEmail("admin@example.com");
+        adminUser.setRoles(Set.of(Role.ADMIN));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userService.register(adminUser)
+        );
+
+        assertTrue(ex.getMessage().contains("Admin registration is not allowed"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void addRoleToUser_donorBecomesPatient() {
+        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser updated = userService.addRoleToUser("john@example.com", Role.PATIENT);
+
+        assertTrue(updated.hasRole(Role.DONOR));
+        assertTrue(updated.hasRole(Role.PATIENT));
+        assertTrue(updated.isDonor());
+        assertTrue(updated.isPatient());
+        verify(userRepository).save(existingUser);
+    }
+
+    @Test
+    void removeRoleFromUser_successAndRejectLastRole() {
+        existingUser.addRole(Role.PATIENT);
+        assertTrue(existingUser.isDonor());
+        assertTrue(existingUser.isPatient());
+
+        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser updated = userService.removeRoleFromUser("john@example.com", Role.PATIENT);
+        assertFalse(updated.hasRole(Role.PATIENT));
+        assertTrue(updated.hasRole(Role.DONOR));
+
+        // Attempting to remove the last role must fail
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                userService.removeRoleFromUser("john@example.com", Role.DONOR)
+        );
+        assertTrue(ex.getMessage().contains("at least one role"));
+    }
+
+    @Test
+    void updateProfile_withRoles_updatesRolesAndSanitizesAdmin() {
+        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.save(any(AppUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AppUser updatedData = new AppUser();
+        updatedData.setFullName("John Multi");
+        updatedData.setCity("Bengaluru");
+
+        Set<Role> requestedRoles = new HashSet<>();
+        requestedRoles.add(Role.DONOR);
+        requestedRoles.add(Role.PATIENT);
+        requestedRoles.add(Role.ADMIN); // Attempt to self-assign ADMIN
+
+        AppUser result = userService.updateProfile("john@example.com", updatedData, requestedRoles, null);
+
+        assertTrue(result.hasRole(Role.DONOR));
+        assertTrue(result.hasRole(Role.PATIENT));
+        assertFalse(result.hasRole(Role.ADMIN)); // ADMIN must be filtered out
     }
 }

@@ -129,7 +129,7 @@ class RequestControllerTest {
 
     @Test
     @WithMockUser(username = "patient@example.com", roles = "PATIENT")
-    void createRequest_withDonorId_connectsAndRedirectsToDetail() throws Exception {
+    void createRequest_withDonorId_sendsRequestToDonorAndRedirects() throws Exception {
         AppUser patient = new AppUser();
         patient.setId(1L);
         patient.setEmail("patient@example.com");
@@ -145,7 +145,7 @@ class RequestControllerTest {
 
         when(userService.byEmail("patient@example.com")).thenReturn(patient);
         when(userService.byId(5L)).thenReturn(donor);
-        when(bloodRequestService.createWithDonor(any(BloodRequest.class), eq(patient), eq(donor))).thenReturn(created);
+        when(bloodRequestService.createWithTargetDonor(any(BloodRequest.class), eq(patient), eq(donor))).thenReturn(created);
 
         mockMvc.perform(post("/requests")
                         .with(csrf())
@@ -158,6 +158,25 @@ class RequestControllerTest {
                 .andExpect(redirectedUrl("/requests/25"))
                 .andExpect(flash().attributeExists("success"));
 
-        verify(bloodRequestService).createWithDonor(any(BloodRequest.class), eq(patient), eq(donor));
+        verify(bloodRequestService).createWithTargetDonor(any(BloodRequest.class), eq(patient), eq(donor));
+    }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void rejectRequest_donorCanRejectRequest() throws Exception {
+        AppUser donor = new AppUser();
+        donor.setId(5L);
+        donor.setEmail("donor@example.com");
+        donor.setRole(Role.DONOR);
+
+        when(userService.byEmail("donor@example.com")).thenReturn(donor);
+
+        mockMvc.perform(post("/requests/15/reject")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/dashboard?tab=donor"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(bloodRequestService).reject(15L, donor);
     }
 }

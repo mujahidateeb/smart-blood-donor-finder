@@ -76,22 +76,29 @@
 
             <div class="section-heading">
                 <div>
-                    <h2>Open emergency requests near you</h2>
-                    <p class="muted">Requests created by patients looking for blood donors.</p>
+                    <h2>Matched emergency requests</h2>
+                    <p class="muted">Requests created by patients matching your blood group (<span th:text="${user.bloodGroup}"></span>) and location.</p>
                 </div>
-                <a href="/donors" class="btn secondary">Find other donors</a>
             </div>
 
-            <div class="empty" th:if="${#lists.isEmpty(openRequests)}">There are no open requests right now.</div>
+            <div class="empty" th:if="${#lists.isEmpty(openRequests)}">There are no matching open requests right now.</div>
             <div class="data-card" th:each="r : ${openRequests}">
                 <div>
-                    <b th:text="${r.bloodGroup}">O_POSITIVE</b>
-                    <p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)'"></p>
-                    <small th:text="${r.message}"></small>
+                    <div>
+                        <b th:text="${r.bloodGroup}">O_POSITIVE</b>
+                        <span th:if="${r.targetDonor != null and r.targetDonor.id == user.id}" class="privacy" style="background:#fff1f2;color:#b9233a;font-weight:700;margin-left:6px;">Direct Request For You</span>
+                    </div>
+                    <p th:text="${r.city} + (${r.area != null and !r.area.empty} ? ' · ' + ${r.area} : '') + ' · ' + ${r.unitsRequired} + ' unit(s)' + ' · Hospital: ' + ${r.hospitalAddress}"></p>
+                    <small th:if="${r.message != null and !r.message.empty}" th:text="${r.message}"></small>
                 </div>
-                <form th:action="@{/requests/{id}/accept(id=${r.id})}" method="post">
-                    <button class="btn primary">Accept request</button>
-                </form>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <form th:action="@{/requests/{id}/accept(id=${r.id})}" method="post" style="margin:0;">
+                        <button class="btn primary">Accept request</button>
+                    </form>
+                    <form th:action="@{/requests/{id}/reject(id=${r.id})}" method="post" style="margin:0;" onsubmit="return confirm('Are you sure you want to reject this blood request?');">
+                        <button class="btn secondary" style="color:var(--red);">Reject</button>
+                    </form>
+                </div>
             </div>
 
             <h2 class="mt">Requests you accepted</h2>

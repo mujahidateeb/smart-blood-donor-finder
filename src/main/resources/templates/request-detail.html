@@ -25,6 +25,17 @@
         <p th:if="${request.neededBy != null}"><b>Needed by:</b> <span th:text="${#temporals.format(request.neededBy, 'dd MMM yyyy HH:mm')}"></span></p>
         <p th:if="${request.createdAt != null}"><small class="muted" th:text="'Created on: ' + ${#temporals.format(request.createdAt, 'dd MMM yyyy HH:mm')}"></small></p>
 
+        <!-- Status alerts for targeted requests or rejected requests -->
+        <div th:if="${request.targetDonor != null and request.status.name() == 'OPEN'}" class="alert info" style="margin-top:16px;">
+            <strong>Request sent to: </strong><span th:text="${request.targetDonor.fullName} + ' (' + ${request.targetDonor.bloodGroup} + ' · ' + ${request.targetDonor.city} + ')'"></span>
+            <p style="margin:4px 0 0;font-size:13px;">Awaiting donor response. The donor can accept or reject this request.</p>
+        </div>
+
+        <div th:if="${request.status.name() == 'REJECTED'}" class="alert error" style="margin-top:16px;">
+            <strong>Request Status: REJECTED</strong>
+            <p style="margin:4px 0 0;font-size:13px;">This blood request was rejected by the donor. You can update this request or send requests to other donors.</p>
+        </div>
+
         <!-- Mutual Contact Revealed when Status is ACCEPTED -->
         <div th:if="${request.status.name() == 'ACCEPTED'}" class="contact-panel">
             <h3>Connection established</h3>
@@ -61,6 +72,16 @@
                   method="post"
                   style="margin:0;">
                 <button name="status" value="COMPLETED" class="btn primary">✓ Mark completed</button>
+            </form>
+        </div>
+
+        <!-- Action buttons for Target Donor when reviewing an Open request -->
+        <div th:if="${currentUser != null and request.targetDonor != null and request.targetDonor.id == currentUser.id and request.status.name() == 'OPEN'}" class="actions" style="margin-top:24px;">
+            <form th:action="@{'/requests/' + ${request.id} + '/accept'}" method="post" style="margin:0;">
+                <button class="btn primary">Accept request</button>
+            </form>
+            <form th:action="@{'/requests/' + ${request.id} + '/reject'}" method="post" style="margin:0;" onsubmit="return confirm('Are you sure you want to reject this blood request?');">
+                <button class="btn secondary" style="color:var(--red);">Reject request</button>
             </form>
         </div>
 

@@ -46,11 +46,11 @@ public class DonorController {
         return "donors";
     }
 
-    @PostMapping("/donors/{donorId}/accept")
-    public String acceptDonor(@PathVariable Long donorId,
-                              @RequestParam(required = false) Long requestId,
-                              Authentication auth,
-                              RedirectAttributes redirect) {
+    @PostMapping({"/donors/{donorId}/request", "/donors/{donorId}/accept"})
+    public String requestDonor(@PathVariable Long donorId,
+                               @RequestParam(required = false) Long requestId,
+                               Authentication auth,
+                               RedirectAttributes redirect) {
         if (auth == null) {
             return "redirect:/login";
         }
@@ -58,7 +58,7 @@ public class DonorController {
         AppUser donor = users.byId(donorId);
 
         if (actor.getId().equals(donor.getId())) {
-            redirect.addFlashAttribute("error", "You cannot accept yourself as a donor.");
+            redirect.addFlashAttribute("error", "You cannot send a blood request to yourself.");
             return "redirect:/donors";
         }
 
@@ -83,15 +83,15 @@ public class DonorController {
 
         if (targetRequest != null) {
             try {
-                requests.acceptDonorForRequest(targetRequest.getId(), donor, actor);
-                redirect.addFlashAttribute("success", "You accepted donor " + donor.getFullName() + ". Contact details are now available below!");
+                requests.sendRequestToDonor(targetRequest.getId(), donor, actor);
+                redirect.addFlashAttribute("success", "Blood request sent to donor " + donor.getFullName() + ". They will review and can accept or reject your request.");
                 return "redirect:/requests/" + targetRequest.getId();
             } catch (RuntimeException ex) {
                 redirect.addFlashAttribute("error", ex.getMessage());
                 return "redirect:/donors";
             }
         } else {
-            redirect.addFlashAttribute("info", "Please enter hospital details to connect with donor " + donor.getFullName() + ".");
+            redirect.addFlashAttribute("info", "Please enter hospital details to send a request to donor " + donor.getFullName() + ".");
             return "redirect:/requests/new?donorId=" + donor.getId();
         }
     }

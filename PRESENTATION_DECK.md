@@ -103,8 +103,8 @@
 ## Slide 6: User Roles & Access Control Model
 
 ### Key Capabilities Matrix
-- **`ROLE_DONOR`**: Browse open local requests in Channagiri, toggle donation availability, accept requests, view patient details upon acceptance.
-- **`ROLE_PATIENT`**: Publish emergency requests with hospital addresses, track status (`OPEN`, `ACCEPTED`, `COMPLETED`), access matched donor phone.
+- **`ROLE_DONOR`**: Browse emergency requests strictly matching their blood group and registered city (or targeted to them), review requests, choose to Accept or Reject, toggle donation availability. Focused donor portal with redundant "Find other donors" navigation removed.
+- **`ROLE_PATIENT`**: Publish emergency requests with hospital addresses, send direct requests to specific donors, update request details via form, track status (`OPEN`, `ACCEPTED`, `COMPLETED`, `CLOSED`), and close open requests with a single click.
 - **`DUAL ROLE`**: Full access to both Donor and Patient portals under a single user profile.
 - **`ROLE_ADMIN`**: Dedicated `/admin` console to manage registered accounts, assign/revoke roles, and moderate all emergency requests.
 
@@ -128,14 +128,14 @@
 ## Slide 9: Feature 2: Role-Aware Dashboard (Donor View Overview)
 
 ### Visual Layout
-- Left: Role chips header, donation availability switch, local emergency feed in Channagiri.
+- Left: Role chips header, donation availability switch, matched emergency feed (compatible blood group & city, or direct requests), "Accept request" and "Reject" actions. Redundant "Find other donors" button removed for a streamlined donor experience.
 - Right: Preview screenshot `screenshots/04_donor_dashboard.png`.
 - Target: Jumps to Slide 10 for Full-Screen HD View.
 
 ---
 
 ## Slide 10: 🔍 [Full-Screen HD View] Feature 2: Donor Portal Dashboard
-- **High-Definition Screenshot**: Shows "Hello, Mariya Firdous", role badges (🩸 Donor, 🏥 Patient, ⚙️ Admin), "You are currently marked as: Available", and open Channagiri emergency transfusion requests.
+- **High-Definition Screenshot**: Shows "Hello, Mariya Firdous", role badges (🩸 Donor, 🏥 Patient, ⚙️ Admin), "You are currently marked as: Available", and open Channagiri emergency transfusion requests matched to the donor with Accept and Reject actions.
 - **Interactive Controls**: Click image to advance to Slide 11; click `↩ Overview` to return to Slide 9.
 
 ---
@@ -143,14 +143,14 @@
 ## Slide 11: Feature 3: Role-Aware Dashboard (Patient View Overview)
 
 ### Visual Layout
-- Left: Emergency action bar, request tracking table, "Matched with donor!" alert chip.
+- Left: Emergency action bar, "+ New emergency request" quick-action, request tracking table, "Update" button to modify open requests via form, and one-click "Close request" button (`CLOSED` status).
 - Right: Preview screenshot `screenshots/05_patient_dashboard.png`.
 - Target: Jumps to Slide 12 for Full-Screen HD View.
 
 ---
 
 ## Slide 12: 🔍 [Full-Screen HD View] Feature 3: Patient Portal Dashboard
-- **High-Definition Screenshot**: Patient portal tracking active requests for Channagiri Taluk General Hospital with status chip `ACCEPTED (Matched with donor!)`.
+- **High-Definition Screenshot**: Patient portal tracking active requests for Channagiri Taluk General Hospital with status chip `ACCEPTED (Matched with donor!)` and action buttons to update or close requests.
 - **Interactive Controls**: Click image to advance to Slide 13; click `↩ Overview` to return to Slide 11.
 
 ---
@@ -158,14 +158,14 @@
 ## Slide 13: Feature 4: Privacy-First Donor Directory (Overview)
 
 ### Visual Layout
-- Left: Precision geo-search by blood group & city, phone number masking, anti-scraping design.
+- Left: Precision geo-search by blood group & city, phone number masking, anti-scraping design, and **"Send Request"** button allowing patients to send requests to target donors for their review and voluntary consent.
 - Right: Preview screenshot `screenshots/07_donor_search_directory.png`.
 - Target: Jumps to Slide 14 for Full-Screen HD View.
 
 ---
 
 ## Slide 14: 🔍 [Full-Screen HD View] Feature 4: Privacy-First Donor Directory
-- **High-Definition Screenshot**: Directory search for O+ donors in Channagiri, highlighting the "Contact protected" badge shielding personal telephone numbers from unauthorized view.
+- **High-Definition Screenshot**: Directory search for O+ donors in Channagiri, highlighting the "Contact protected" badge shielding personal telephone numbers and the "Send Request" action button.
 - **Interactive Controls**: Click image to advance to Slide 15; click `↩ Overview` to return to Slide 13.
 
 ---
@@ -173,7 +173,7 @@
 ## Slide 15: Feature 5: Emergency Blood Request Form (Overview)
 
 ### Visual Layout
-- Left: Clinical specificity (blood group, units), hospital facility geocoding, urgency notes.
+- Left: Clinical specificity (blood group, units), hospital facility geocoding, urgency notes, and optional target donor pre-selection.
 - Right: Preview screenshot `screenshots/06_emergency_request_form.png`.
 - Target: Jumps to Slide 16 for Full-Screen HD View.
 
@@ -188,14 +188,14 @@
 ## Slide 17: Feature 6: Mutual Acceptance & Secure Handshake (Overview)
 
 ### Visual Layout
-- Left: Two-way mutual consent rules, contact info unlock upon acceptance, lifecycle closure.
+- Left: Two-way mutual consent rules (Patient dispatches request, Target Donor can Accept or Reject), contact info unlock upon acceptance, patient edit/close controls, and lifecycle closure.
 - Right: Preview screenshot `screenshots/09_request_detail_matched.png`.
 - Target: Jumps to Slide 18 for Full-Screen HD View.
 
 ---
 
 ## Slide 18: 🔍 [Full-Screen HD View] Feature 6: Mutual Acceptance Handshake
-- **High-Definition Screenshot**: The "Connection established" panel unlocking the patient's verified contact phone number (`9876543210`) for Mariya Firdous in Channagiri, enabling urgent coordination.
+- **High-Definition Screenshot**: The "Connection established" panel unlocking the patient's verified contact phone number (`9876543210`) for Mariya Firdous in Channagiri, enabling urgent coordination, with complete lifecycle actions.
 - **Interactive Controls**: Click image to advance to Slide 19; click `↩ Overview` to return to Slide 17.
 
 ---
@@ -220,7 +220,7 @@
 ### Tables Structure
 - **`users` Table**: Primary entity storing credentials, blood group, encrypted password, city, area, and availability.
 - **`user_roles` Table**: Join table enabling dynamic multi-role assignment (`DONOR`, `PATIENT`, `ADMIN`).
-- **`blood_requests` Table**: Relational request model linking `patient_id` to `accepted_donor_id`.
+- **`blood_requests` Table**: Relational request model linking `patient_id` to `target_donor_id` (invited donor) and `accepted_donor_id` with statuses: `OPEN`, `ACCEPTED`, `COMPLETED`, `CANCELLED`, `REJECTED`, `CLOSED`.
 
 ---
 
@@ -233,7 +233,7 @@
 - **`com.smartblood.model`**: Entities (`AppUser`, `BloodRequest`) and Enums (`BloodGroup`, `Role`, `RequestStatus`).
 - **`com.smartblood.repository`**: JPA repositories (`UserRepository`, `BloodRequestRepository`).
 - **`com.smartblood.service`**: Business logic (`UserService`, `BloodRequestService`).
-- **`src/main/resources`**: 13 Thymeleaf templates, `style.css`, `app.js`, `application.properties`.
+- **`src/main/resources`**: 14 Thymeleaf templates (including `request-edit.html`), `style.css`, `app.js`, `application.properties`.
 
 ---
 
@@ -251,7 +251,7 @@
 ## Slide 24: Testing, Verification & Quality Assurance
 
 ### Key Bullet Points
-- **Automated Test Suite**: 7 JUnit 5 test classes validating context startup, registration, role toggling, matching, and duplicate prevention.
+- **Automated Test Suite**: 8 JUnit 5 test classes (51 automated tests, 100% pass) validating context startup, registration, role toggling, matching, request edit/close, donor accept/reject, and duplicate prevention.
 - **Security Defenses**: BCrypt salted hashing, CSRF tokens on state-changing forms, strict RBAC filter chain, data redaction.
 
 ---

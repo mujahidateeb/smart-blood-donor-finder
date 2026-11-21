@@ -177,18 +177,18 @@ class BloodRequestServiceTest {
     }
 
     @Test
-    void acceptDonorForRequest_success() {
+    void sendRequestToDonor_success() {
         when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
         when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
 
-        BloodRequest accepted = bloodRequestService.acceptDonorForRequest(100L, anotherDonor, dualRoleUser);
-        assertEquals(RequestStatus.ACCEPTED, accepted.getStatus());
-        assertEquals(anotherDonor, accepted.getAcceptedDonor());
+        BloodRequest sent = bloodRequestService.sendRequestToDonor(100L, anotherDonor, dualRoleUser);
+        assertEquals(RequestStatus.OPEN, sent.getStatus());
+        assertEquals(anotherDonor, sent.getTargetDonor());
         verify(requestRepository).save(bloodRequest);
     }
 
     @Test
-    void acceptDonorForRequest_rejectNonDonor() {
+    void sendRequestToDonor_rejectNonDonor() {
         AppUser patientOnly = new AppUser();
         patientOnly.setId(30L);
         patientOnly.setRole(Role.PATIENT);
@@ -197,13 +197,13 @@ class BloodRequestServiceTest {
         when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                bloodRequestService.acceptDonorForRequest(100L, patientOnly, dualRoleUser)
+                bloodRequestService.sendRequestToDonor(100L, patientOnly, dualRoleUser)
         );
         assertTrue(ex.getMessage().contains("not registered as a donor"));
     }
 
     @Test
-    void createWithDonor_success() {
+    void createWithTargetDonor_success() {
         when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
 
         BloodRequest req = new BloodRequest();
@@ -212,10 +212,51 @@ class BloodRequestServiceTest {
         req.setHospitalAddress("City Hospital");
         req.setUnitsRequired(1);
 
-        BloodRequest created = bloodRequestService.createWithDonor(req, dualRoleUser, anotherDonor);
+        BloodRequest created = bloodRequestService.createWithTargetDonor(req, dualRoleUser, anotherDonor);
         assertEquals(dualRoleUser, created.getPatient());
-        assertEquals(anotherDonor, created.getAcceptedDonor());
-        assertEquals(RequestStatus.ACCEPTED, created.getStatus());
+        assertEquals(anotherDonor, created.getTargetDonor());
+        assertEquals(RequestStatus.OPEN, created.getStatus());
         verify(requestRepository).save(req);
+    }
+
+    @Test
+    void rejectRequest_success() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+        when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        BloodRequest rejected = bloodRequestService.reject(100L, anotherDonor);
+        assertEquals(RequestStatus.REJECTED, rejected.getStatus());
+        verify(requestRepository).save(bloodRequest);
+    }
+
+    @Test
+    void matchedRequestsForDonor_returnsOnlyMatchingBloodAndCity() {
+        BloodRequest matchedReq = new BloodRequest();
+        matchedReq.setId(101L);
+        matchedReq.setPatient(dualRoleUser);
+        matchedReq.setBloodGroup(BloodGroup.O_POSITIVE);
+        matchedReq.setCity("Bengaluru");
+        matchedReq.setStatus(RequestStatus.OPEN);
+
+        BloodRequest mismatchedGroup = new BloodRequest();
+        mismatchedGroup.setId(102L);
+        mismatchedGroup.setPatient(dualRoleUser);
+        mismatchedGroup.setBloodGroup(BloodGroup.B_POSITIVE);
+        mismatchedGroup.setCity("Bengaluru");
+        mismatchedGroup.setStatus(RequestStatus.OPEN);
+
+        BloodRequest mismatchedCity = new BloodRequest();
+        mismatchedCity.setId(103L);
+        mismatchedCity.setPatient(dualRoleUser);
+        mismatchedCity.setBloodGroup(BloodGroup.O_POSITIVE);
+        mismatchedCity.setCity("Mysuru");
+        mismatchedCity.setStatus(RequestStatus.OPEN);
+
+        when(requestRepository.findByStatusOrderByCreatedAtDesc(RequestStatus.OPEN))
+                .thenReturn(java.util.List.of(matchedReq, mismatchedGroup, mismatchedCity));
+
+        java.util.List<BloodRequest> result = bloodRequestService.matchedRequestsForDonor(anotherDonor);
+        assertEquals(1, result.size());
+        assertEquals(101L, result.get(0).getId());
     }
 }

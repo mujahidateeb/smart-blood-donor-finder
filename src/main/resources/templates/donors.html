@@ -45,18 +45,18 @@
             </div>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <span class="privacy">Contact protected</span>
-                <!-- Accept button for find blood donors result list -->
+                <!-- Send Request button for find blood donors result list -->
                 <form th:if="${currentUser == null or currentUser.id != d.id}"
-                      th:action="@{'/donors/' + ${d.id} + '/accept'}"
+                      th:action="@{'/donors/' + ${d.id} + '/request'}"
                       method="post"
                       style="margin:0;">
-                    <button type="submit" class="btn primary">Accept</button>
+                    <button type="submit" class="btn primary">Send Request</button>
                 </form>
                 <span th:if="${currentUser != null and currentUser.id == d.id}" class="privacy" style="background:#eaf8ee;color:#216b37;">You (Registered donor)</span>
             </div>
         </div>
         <p class="muted small" style="margin-top:20px;">
-            Click <b>Accept</b> on any donor to initiate connection. Once accepted, contact details will be revealed.
+            Click <b>Send Request</b> on any donor to send them a donation request. The donor will review it in their Donor Portal to accept or reject.
         </p>
     </div>
 </main>

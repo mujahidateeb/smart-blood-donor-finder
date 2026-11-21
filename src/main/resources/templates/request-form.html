@@ -17,9 +17,9 @@
         <p class="muted">Provide accurate details so potential donors can respond.</p>
 
         <div th:if="${targetDonor != null}" class="alert info" style="margin-bottom:20px;">
-            <strong>Accepting Donor: </strong>
+            <strong>Requesting Donor: </strong>
             <span th:text="${targetDonor.fullName} + ' (' + ${targetDonor.bloodGroup} + ' · ' + ${targetDonor.city} + (${targetDonor.area != null and !targetDonor.area.empty} ? ' · ' + ${targetDonor.area} : '') + ')'"></span>
-            <p style="margin:6px 0 0;font-size:13px;">Please enter hospital details below. Submitting will immediately link this request with the donor and reveal contact details.</p>
+            <p style="margin:6px 0 0;font-size:13px;">Please enter hospital details below. Submitting will send this request to the donor so they can review and accept or reject.</p>
         </div>
 
         <form th:action="@{/requests}" th:object="${request}" method="post">
@@ -53,7 +53,7 @@
                     <textarea th:field="*{message}" rows="3" placeholder="Patient condition, timing, other useful details"></textarea>
                 </div>
             </div>
-            <button class="btn primary full" th:text="${targetDonor != null} ? 'Confirm & Connect with Donor' : 'Publish emergency request'">Publish emergency request</button>
+            <button class="btn primary full" th:text="${targetDonor != null} ? 'Send Request to Donor' : 'Publish emergency request'">Publish emergency request</button>
         </form>
     </section>
 </main>

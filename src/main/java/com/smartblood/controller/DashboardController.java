@@ -23,7 +23,7 @@ public class DashboardController {
         model.addAttribute("user", user);
 
         model.addAttribute("requests", requests.forPatient(user.getId()));
-        model.addAttribute("openRequests", requests.openRequests());
+        model.addAttribute("openRequests", requests.matchedRequestsForDonor(user));
         model.addAttribute("myAcceptedRequests", requests.forDonor(user.getId()));
 
         String activeTab = tab;

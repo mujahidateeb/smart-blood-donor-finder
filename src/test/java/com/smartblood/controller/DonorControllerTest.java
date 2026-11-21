@@ -89,7 +89,7 @@ class DonorControllerTest {
 
     @Test
     @WithMockUser(username = "patient@example.com", roles = "PATIENT")
-    void acceptDonor_withMatchingOpenRequest_acceptsAndRedirectsToDetails() throws Exception {
+    void requestDonor_withMatchingOpenRequest_sendsRequestAndRedirectsToDetails() throws Exception {
         AppUser patient = new AppUser();
         patient.setId(1L);
         patient.setEmail("patient@example.com");
@@ -111,18 +111,18 @@ class DonorControllerTest {
         when(userService.byId(2L)).thenReturn(donor);
         when(bloodRequestService.forPatient(1L)).thenReturn(List.of(openReq));
 
-        mockMvc.perform(post("/donors/2/accept")
+        mockMvc.perform(post("/donors/2/request")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/requests/10"))
                 .andExpect(flash().attributeExists("success"));
 
-        verify(bloodRequestService).acceptDonorForRequest(10L, donor, patient);
+        verify(bloodRequestService).sendRequestToDonor(10L, donor, patient);
     }
 
     @Test
     @WithMockUser(username = "patient@example.com", roles = "PATIENT")
-    void acceptDonor_withoutOpenRequest_redirectsToNewRequestForm() throws Exception {
+    void requestDonor_withoutOpenRequest_redirectsToNewRequestForm() throws Exception {
         AppUser patient = new AppUser();
         patient.setId(1L);
         patient.setEmail("patient@example.com");
@@ -138,7 +138,7 @@ class DonorControllerTest {
         when(userService.byId(2L)).thenReturn(donor);
         when(bloodRequestService.forPatient(1L)).thenReturn(Collections.emptyList());
 
-        mockMvc.perform(post("/donors/2/accept")
+        mockMvc.perform(post("/donors/2/request")
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/requests/new?donorId=2"))

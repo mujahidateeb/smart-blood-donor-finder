@@ -54,8 +54,8 @@ public class RequestController {
         if (donorId != null) {
             try {
                 AppUser donor = users.byId(donorId);
-                BloodRequest saved = requests.createWithDonor(request, patient, donor);
-                redirect.addFlashAttribute("success", "Blood request created and matched with donor " + donor.getFullName() + "! Contact details are visible below.");
+                BloodRequest saved = requests.createWithTargetDonor(request, patient, donor);
+                redirect.addFlashAttribute("success", "Blood request sent to donor " + donor.getFullName() + ". They will review and can accept or reject your request.");
                 return "redirect:/requests/" + saved.getId();
             } catch (RuntimeException ex) {
                 redirect.addFlashAttribute("error", ex.getMessage());
@@ -76,6 +76,17 @@ public class RequestController {
             redirect.addFlashAttribute("error", ex.getMessage());
             return "redirect:/dashboard?tab=donor";
         }
+    }
+
+    @PostMapping("/requests/{id}/reject")
+    public String reject(@PathVariable Long id, Authentication auth, RedirectAttributes redirect) {
+        try {
+            requests.reject(id, users.byEmail(auth.getName()));
+            redirect.addFlashAttribute("success", "You rejected the blood request.");
+        } catch (RuntimeException ex) {
+            redirect.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/dashboard?tab=donor";
     }
 
     @GetMapping("/requests/{id}")

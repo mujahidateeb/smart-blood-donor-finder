@@ -903,8 +903,9 @@
                         <ul>
                             <li><strong>Role Badges:</strong> Visual chips at the top showing current active roles (Donor, Patient).</li>
                             <li><strong>Availability Toggle:</strong> Single-click toggle between "Available" (green) and "Unavailable" (red).</li>
-                            <li><strong>Emergency Feed:</strong> Live feed of open patient requests matching the donor's blood group and city.</li>
-                            <li><strong>Accept Action:</strong> Donors can review units needed, hospital location, and accept immediately.</li>
+                            <li><strong>Matched Emergency Feed:</strong> Live feed displaying ONLY open patient requests matching the donor's blood group and city (or direct requests targeted to them).</li>
+                            <li><strong>Accept & Reject Actions:</strong> Donors can review request details and choose to either "Accept request" or "Reject", giving full control over consent.</li>
+                            <li><strong>Streamlined Focus:</strong> Redundant "Find other donors" button removed from the Donor Portal to keep donor focus exclusively on incoming transfusion needs.</li>
                         </ul>
                     </div>
                     <div class="screenshot-container">
@@ -913,7 +914,7 @@
                     </div>
                 </div>
                 <div class="speaker-notes-box">
-                    <strong>Presenter Script:</strong> "On Slide 8, the Donor Portal provides instant controls. The donor can switch their availability with one click and accept local open requests immediately."
+                    <strong>Presenter Script:</strong> "On Slide 8, the Donor Portal provides instant controls. Donors see only matched emergency requests in their city and can choose to Accept or Reject them. The redundant find other donors button has been removed to streamline donor focus."
                 </div>
             </div>
         </section>
@@ -933,9 +934,10 @@
                         <p style="margin-bottom: 12px;"><strong>Patient Portal Highlights:</strong></p>
                         <ul>
                             <li><strong>Quick Emergency Action:</strong> Prominent "+ New emergency request" button to post urgent needs instantly.</li>
-                            <li><strong>Live Status Tracking:</strong> Real-time overview of all posted requests with status badges (`OPEN`, `ACCEPTED`).</li>
+                            <li><strong>Live Status Tracking:</strong> Real-time overview of all posted requests with status badges (`OPEN`, `ACCEPTED`, `CLOSED`).</li>
+                            <li><strong>Update Request Details:</strong> Dedicated "Update" button on open requests opening an edit form to modify hospital address, units, or urgency notes.</li>
+                            <li><strong>One-Click Request Closing:</strong> "Close request" button allowing patients to close requests immediately when blood needs are fulfilled elsewhere.</li>
                             <li><strong>Donor Match Alert:</strong> Instant visual banner ("Matched with donor!") upon acceptance by a volunteer.</li>
-                            <li><strong>One-Click Role Activation:</strong> If a donor switches to the patient tab, a simple button lets them activate patient rights.</li>
                         </ul>
                     </div>
                     <div class="screenshot-container">
@@ -965,6 +967,7 @@
                         <ul>
                             <li><strong>Multi-Parameter Filter:</strong> Filter registered donors by blood group, city, and optional area.</li>
                             <li><strong>Masked Contact Details:</strong> Personal phone numbers and email addresses are completely hidden from public directories.</li>
+                            <li><strong>"Send Request" Action:</strong> Patients can click "Send Request" on any donor card to invite that target donor, without bypassing their consent or auto-accepting on their behalf.</li>
                             <li><strong>"Contact Protected" Badge:</strong> Reassures donors that their personal privacy is safeguarded at all times.</li>
                             <li><strong>Availability Guard:</strong> Donors who marked themselves unavailable do not appear in searches.</li>
                         </ul>
@@ -1025,10 +1028,10 @@
                     <div>
                         <p style="margin-bottom: 12px;"><strong>Two-Way Mutual Consent Model:</strong></p>
                         <ul>
-                            <li><strong>Acceptance Trigger:</strong> When an eligible donor accepts an open request, status transitions to `ACCEPTED`.</li>
-                            <li><strong>Connection Established:</strong> Dedicated contact panel unlocks, revealing patient phone and donor phone to each other.</li>
+                            <li><strong>Two-Way Consent:</strong> Patient sends request; the target donor can voluntarily Accept or Reject.</li>
+                            <li><strong>Connection Established:</strong> When accepted, status transitions to `ACCEPTED`, unlocking verified phone contacts for both patient and donor.</li>
                             <li><strong>Direct Coordination:</strong> Parties communicate directly via phone to confirm timing and hospital arrival.</li>
-                            <li><strong>Lifecycle Closure:</strong> Either party can mark the request as `COMPLETED` once donation finishes.</li>
+                            <li><strong>Full Lifecycle Control:</strong> Patients can update request parameters or close open requests, and finalize as `COMPLETED`.</li>
                         </ul>
                     </div>
                     <div class="screenshot-container">
@@ -1111,12 +1114,13 @@
                         <p style="font-size: 13px; font-family: monospace;">
                             • id (BIGINT, PK, Auto)<br>
                             • patient_id (BIGINT, FK)<br>
+                            • target_donor_id (BIGINT, FK)<br>
                             • accepted_donor_id (FK)<br>
                             • blood_group (Enum)<br>
                             • city, area (VARCHAR)<br>
                             • units_required (INT)<br>
                             • hospital_address<br>
-                            • status (Enum: OPEN, etc.)
+                            • status (Enum: OPEN, ACCEPTED, COMPLETED, CLOSED, REJECTED)
                         </p>
                     </div>
                 </div>
@@ -1180,12 +1184,15 @@
             <div class="slide-content">
                 <div class="two-col">
                     <div class="info-card green">
-                        <h3 class="card-title">Automated Test Suite (100% Pass)</h3>
+                        <h3 class="card-title">Automated Test Suite (51 Tests, 100% Pass)</h3>
                         <ul>
                             <li><strong>SmartBloodDonorApplicationTests:</strong> Context bootstrap validation.</li>
                             <li><strong>AuthControllerTest:</strong> Registration & login authentication flows.</li>
-                            <li><strong>BloodRequestServiceTest:</strong> Blood group & city matching, donor acceptance constraints.</li>
-                            <li><strong>ProfileControllerTest:</strong> Dynamic role addition & security context sync.</li>
+                            <li><strong>DashboardControllerTest:</strong> Role tabs & matched request display.</li>
+                            <li><strong>DonorControllerTest:</strong> Search, send request & availability toggle.</li>
+                            <li><strong>RequestControllerTest:</strong> Emergency creation, edit, close, accept & reject routes.</li>
+                            <li><strong>BloodRequestServiceTest:</strong> Matching criteria, donor acceptance & rejection.</li>
+                            <li><strong>ProfileControllerTest:</strong> Dynamic role addition & security sync.</li>
                             <li><strong>UserServiceTest:</strong> BCrypt encryption and repository queries.</li>
                         </ul>
                     </div>

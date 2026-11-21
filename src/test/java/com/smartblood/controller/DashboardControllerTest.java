@@ -53,7 +53,7 @@ class DashboardControllerTest {
 
         when(userService.byEmail("dual@example.com")).thenReturn(dualUser);
         when(bloodRequestService.forPatient(1L)).thenReturn(Collections.emptyList());
-        when(bloodRequestService.openRequests()).thenReturn(Collections.emptyList());
+        when(bloodRequestService.matchedRequestsForDonor(dualUser)).thenReturn(Collections.emptyList());
         when(bloodRequestService.forDonor(1L)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/dashboard"))

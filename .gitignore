@@ -11,3 +11,9 @@ capture_screenshots.mjs
 generate_pptx.cjs
 generate_docx.cjs
 PRESENTATION_DECK.ppsx
+
+# Cloudflare Tunnel files
+.cloudflared/
+cloudflare/*.json
+cloudflare/*.pem
+cloudflare/config.yml

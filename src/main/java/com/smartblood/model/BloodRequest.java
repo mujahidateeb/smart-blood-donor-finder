@@ -18,6 +18,9 @@ public class BloodRequest {
     @ManyToOne
     private AppUser acceptedDonor;
 
+    @ManyToOne
+    private AppUser targetDonor;
+
     @Enumerated(EnumType.STRING) @NotNull
     private BloodGroup bloodGroup;
 
@@ -46,6 +49,8 @@ public class BloodRequest {
     public void setPatient(AppUser patient) { this.patient = patient; }
     public AppUser getAcceptedDonor() { return acceptedDonor; }
     public void setAcceptedDonor(AppUser acceptedDonor) { this.acceptedDonor = acceptedDonor; }
+    public AppUser getTargetDonor() { return targetDonor; }
+    public void setTargetDonor(AppUser targetDonor) { this.targetDonor = targetDonor; }
     public BloodGroup getBloodGroup() { return bloodGroup; }
     public void setBloodGroup(BloodGroup bloodGroup) { this.bloodGroup = bloodGroup; }
     public String getCity() { return city; }

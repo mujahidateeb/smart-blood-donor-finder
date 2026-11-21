@@ -1,0 +1,8 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Register</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><div th:replace="fragments :: nav"></div><main class="form-wrap"><section class="form-card wide"><h1>Create your account</h1><p class="muted">Join the community and help connect people who need blood.</p><div th:replace="fragments :: alerts"></div>
+<form th:action="@{/register}" th:object="${user}" method="post">
+<div class="form-grid"><div><label>Full name</label><input th:field="*{fullName}" required></div><div><label>Email</label><input type="email" th:field="*{email}" required></div>
+<div><label>Password</label><input type="password" th:field="*{password}" minlength="8" required></div><div><label>Account type</label><select th:field="*{role}" required><option value="">Choose role</option><option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option></select></div>
+<div><label>Blood group</label><select th:field="*{bloodGroup}" required><option value="">Choose blood group</option><option th:each="g : ${T(com.smartblood.model.BloodGroup).values()}" th:value="${g}" th:text="${g}"></option></select></div>
+<div><label>Phone number</label><input th:field="*{phone}" placeholder="Mobile number"></div><div><label>City</label><input th:field="*{city}" required></div><div><label>Area / locality</label><input th:field="*{area}"></div></div>
+<button class="btn primary full">Create account</button></form><p class="muted center">Already registered? <a href="/login">Sign in</a></p></section></main></body></html>

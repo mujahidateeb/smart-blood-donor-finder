@@ -1,0 +1,5 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Manage blood requests</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><div th:replace="fragments :: nav"></div><main class="container"><div th:replace="fragments :: alerts"></div><div class="page-heading"><div><span class="eyebrow">ADMINISTRATION</span><h1>Blood requests</h1><p class="muted">Review request details, status, and the patient who created each request.</p></div><a class="btn secondary" href="/admin/users">Manage users</a></div>
+<div class="empty" th:if="${#lists.isEmpty(requests)}">No blood requests found.</div>
+<div class="data-card" th:each="r : ${requests}"><div><b th:text="${r.bloodGroup} + ' · ' + ${r.status}">Request</b><p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)'"></p><small th:text="'Patient: ' + ${r.patient.fullName} + ' · ' + ${r.patient.email} + ' · ' + ${r.hospitalAddress}"></small></div><a class="btn secondary" th:href="@{'/admin/requests/' + ${r.id} + '/edit'}">Edit request</a></div>
+</main></body></html>

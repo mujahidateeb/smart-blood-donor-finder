@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body><script src="https://code.jquery.com/jquery-3.6.4.min.js"></script><script src="/js/app.js"></script>
+<nav th:fragment="nav" class="nav">
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script><script src="/js/app.js"></script>
+  <a class="brand" href="/">🩸 Smart Blood Finder</a>
+  <div class="navlinks">
+    <a href="/donors">Find Donors</a>
+    <a href="/dashboard" sec:authorize="isAuthenticated()">Dashboard</a>
+    <a href="/admin" sec:authorize="hasRole('ADMIN')">Admin</a>
+    <a href="/profile" sec:authorize="isAuthenticated()">Profile</a>
+
+    <a href="/register" sec:authorize="isAnonymous()">Register</a>
+    <a href="/login" sec:authorize="isAnonymous()">Login</a>
+
+    <form th:action="@{/logout}" method="post"
+          sec:authorize="isAuthenticated()" class="inline">
+        <button class="link-button">Logout</button>
+    </form>
+</div>
+</nav>
+<div th:fragment="alerts">
+  <div class="alert success" th:if="${success}" th:text="${success}"></div>
+  <div class="alert error" th:if="${error}" th:text="${error}"></div>
+</div>
+</body>
+</html>

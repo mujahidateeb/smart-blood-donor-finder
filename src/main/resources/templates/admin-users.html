@@ -1,0 +1,5 @@
+<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Manage users</title><link rel="stylesheet" href="/css/style.css"></head>
+<body><div th:replace="fragments :: nav"></div><main class="container"><div th:replace="fragments :: alerts"></div><div class="page-heading"><div><span class="eyebrow">ADMINISTRATION</span><h1>Users</h1><p class="muted">View registered account details and edit profile information.</p></div><a class="btn secondary" href="/admin/requests">Manage blood requests</a></div>
+<div class="empty" th:if="${#lists.isEmpty(users)}">No users found.</div>
+<div class="data-card" th:each="u : ${users}"><div><b th:text="${u.fullName}">Full name</b><p th:text="${u.email} + ' · ' + ${u.role} + ' · ' + ${u.bloodGroup}">User details</p><small th:text="${u.phone} + ' · ' + ${u.city} + ' · ' + ${u.area}">Contact and location</small></div><a class="btn secondary" th:href="@{'/admin/users/' + ${u.id} + '/edit'}">Edit user</a></div>
+</main></body></html>

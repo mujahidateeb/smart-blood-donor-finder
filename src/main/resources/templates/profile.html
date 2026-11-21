@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Profile - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="form-wrap">
+    <section class="form-card wide">
+        <div class="page-heading">
+            <div>
+                <span class="eyebrow">YOUR ACCOUNT</span>
+                <h1>Update Profile</h1>
+                <p class="muted">Manage your personal information, contact details, and donation status.</p>
+            </div>
+            <div>
+                <span class="status" th:text="${user.role}">DONOR</span>
+            </div>
+        </div>
+
+        <div th:replace="fragments :: alerts"></div>
+
+        <form th:action="@{/profile}" th:object="${user}" method="post">
+            <div class="form-grid">
+                <div>
+                    <label for="fullName">Full name</label>
+                    <input id="fullName" th:field="*{fullName}" required placeholder="Your full name">
+                </div>
+                <div>
+                    <label for="email">Email address</label>
+                    <input id="email" type="email" th:field="*{email}" required placeholder="you@example.com">
+                </div>
+                <div>
+                    <label for="bloodGroup">Blood group</label>
+                    <select id="bloodGroup" th:field="*{bloodGroup}" required>
+                        <option th:each="g : ${bloodGroups}" th:value="${g}" th:text="${g}"></option>
+                    </select>
+                </div>
+                <div>
+                    <label for="phone">Phone number</label>
+                    <input id="phone" th:field="*{phone}" placeholder="Mobile number">
+                </div>
+                <div>
+                    <label for="city">City</label>
+                    <input id="city" th:field="*{city}" required placeholder="City name">
+                </div>
+                <div>
+                    <label for="area">Area / locality</label>
+                    <input id="area" th:field="*{area}" placeholder="Area or neighborhood">
+                </div>
+
+                <div class="span-2" th:if="${user.role.name() == 'DONOR'}">
+                    <div class="checkbox-row">
+                        <input type="checkbox" id="availableToDonate" th:field="*{availableToDonate}">
+                        <div>
+                            <label for="availableToDonate">Available to donate blood</label>
+                            <small class="muted">When active, your profile is discoverable in blood donor search results for matching blood group and city.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="span-2 security-divider">
+                    <h3>Security (Optional)</h3>
+                    <p class="muted small">Leave password empty if you do not want to change your current password.</p>
+                </div>
+                <div class="span-2">
+                    <label for="newPassword">New password</label>
+                    <input id="newPassword" type="password" name="newPassword" minlength="8" placeholder="Enter at least 8 characters to set a new password">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn primary">Save changes</button>
+                <a href="/dashboard" class="btn secondary">Back to dashboard</a>
+            </div>
+        </form>
+    </section>
+</main>
+</body>
+</html>

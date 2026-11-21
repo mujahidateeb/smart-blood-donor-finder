@@ -1,0 +1,10 @@
+package com.smartblood;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class SmartBloodDonorApplicationTests {
+    @Test
+    void contextLoads() { }
+}

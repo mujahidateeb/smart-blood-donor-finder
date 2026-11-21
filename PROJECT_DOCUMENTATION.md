@@ -72,11 +72,11 @@ The application solves these problems through:
 - **Rapid Matching**: Minimize emergency response times by connecting patients directly to verified local donors.
 - **Data Protection**: Enforce privacy standards by hiding contact information in directories and implementing robust Spring Security controls.
 - **Role Flexibility**: Provide a unified account dashboard that accommodates both donor availability and patient emergency requests.
-- **Lifecycle Tracking**: Enable end-to-end request management through states: `OPEN` $\rightarrow$ `ACCEPTED` $\rightarrow$ `COMPLETED` / `CANCELLED`.
-- **System Integrity**: Maintain robust automated test coverage across authentication, authorization, controllers, and database interactions.
+- **Lifecycle Tracking**: Enable end-to-end request management through states: `OPEN` $\rightarrow$ `ACCEPTED` $\rightarrow$ `COMPLETED` / `CANCELLED` / `CLOSED` / `REJECTED`.
+- **System Integrity**: Maintain robust automated test coverage (51 unit and controller tests) across authentication, authorization, controllers, and database interactions.
 
 ### 2.2 Scope
-- **Included**: Donor registration, role assignment, profile editing, availability toggling, public directory search with contact masking, emergency request publishing, donor acceptance flow, request lifecycle tracking, admin management of users and requests, and password encryption.
+- **Included**: Donor registration, role assignment, profile editing, availability toggling, public directory search with contact masking, emergency request publishing, "Send Request" targeted donor dispatch, donor matched request filtering, two-way consent with donor accept/reject, patient request editing and one-click closing, request lifecycle tracking, admin management of users and requests, and password encryption.
 - **Excluded**: Online monetary transactions (blood donation is strictly voluntary), clinical cross-matching laboratory diagnostics, and automated SMS gateway dispatching (prepared as future enhancements).
 
 ---
@@ -190,27 +190,49 @@ sequenceDiagram
     participant App as Smart Blood Finder (Spring Boot)
     participant DB as MySQL 8 Database
 
-    Note over Patient,DB: Step 1: Emergency Blood Request Creation
-    Patient->>App: POST /requests (Blood Group, City, Area, Hospital, Units)
-    App->>DB: INSERT into blood_requests (status = 'OPEN')
-    App-->>Patient: Redirect /dashboard with confirmation
+    Note over Patient,DB: Step 1: Emergency Blood Request Creation or Direct Dispatch
+    alt General Emergency Request Broadcast
+        Patient->>App: POST /requests (Blood Group, City, Area, Hospital, Units)
+        App->>DB: INSERT into blood_requests (status = 'OPEN', target_donor = null)
+        App-->>Patient: Redirect /dashboard with confirmation
+    else Targeted Request via Donor Directory
+        Patient->>App: POST /donors/{id}/request (Send Request)
+        App->>DB: INSERT into blood_requests (status = 'OPEN', target_donor_id = donor.id)
+        App-->>Patient: Redirect /dashboard with confirmation
+    end
 
-    Note over Donor,DB: Step 2: Request Discovery & Acceptance
-    Donor->>App: GET /dashboard?tab=donor (View open requests in city)
-    App->>DB: SELECT * FROM blood_requests WHERE status = 'OPEN'
-    App-->>Donor: Displays Open Emergency Requests
-    Donor->>App: POST /requests/{id}/accept
-    App->>DB: Validate Blood Group & City Compatibility
-    App->>DB: UPDATE blood_requests SET accepted_donor_id = donor.id, status = 'ACCEPTED'
-    App-->>Donor: Redirect /requests/{id} (Patient Contact Info Revealed!)
+    Note over Donor,DB: Step 2: Matched Request Discovery & Consent (Accept / Reject)
+    Donor->>App: GET /dashboard?tab=donor (View matched requests in city or targeted to donor)
+    App->>DB: SELECT * FROM blood_requests WHERE status = 'OPEN' AND (target_donor_id = donor.id OR (blood_group = donor.blood_group AND city = donor.city))
+    App-->>Donor: Displays ONLY Matched Emergency Requests (with Accept & Reject options)
+    alt Donor Accepts Request
+        Donor->>App: POST /requests/{id}/accept
+        App->>DB: UPDATE blood_requests SET accepted_donor_id = donor.id, status = 'ACCEPTED'
+        App-->>Donor: Redirect /requests/{id} (Patient & Donor Contact Info Revealed!)
+    else Donor Rejects Request
+        Donor->>App: POST /requests/{id}/reject
+        App->>DB: UPDATE blood_requests SET status = 'REJECTED'
+        App-->>Donor: Redirect /dashboard (Request removed from donor queue)
+    end
 
-    Note over Patient,Donor: Step 3: Mutual Contact Revelation & Fulfillment
-    Patient->>App: GET /requests/{id}
-    App-->>Patient: Shows Donor Phone, Email, and Status: ACCEPTED
-    Note over Patient,Donor: Direct phone contact established; blood donation completed at hospital
-    Patient->>App: POST /requests/{id}/status (status = 'COMPLETED')
-    App->>DB: UPDATE blood_requests SET status = 'COMPLETED'
-    App-->>Patient: Status finalized as COMPLETED
+    Note over Patient,Donor: Step 3: Patient Lifecycle Actions & Fulfillment
+    opt Patient Updates Request Details
+        Patient->>App: GET /requests/{id}/edit (Open edit form)
+        App-->>Patient: Render request-edit.html
+        Patient->>App: POST /requests/{id}/edit (Update hospital, units, message)
+        App->>DB: UPDATE blood_requests SET hospital_address, units_required, message
+        App-->>Patient: Redirect /requests/{id} with success alert
+    end
+    opt Patient Closes Open Request
+        Patient->>App: POST /requests/{id}/close (Close request button)
+        App->>DB: UPDATE blood_requests SET status = 'CLOSED'
+        App-->>Patient: Redirect /dashboard with closed status confirmation
+    end
+    opt Blood Donation Completed
+        Patient->>App: POST /requests/{id}/status (status = 'COMPLETED')
+        App->>DB: UPDATE blood_requests SET status = 'COMPLETED'
+        App-->>Patient: Status finalized as COMPLETED
+    end
 ```
 
 ---
@@ -252,15 +274,15 @@ smart-blood-donor-finder/
     │   │   │   ├── AdminController.java           # Admin console routes (/admin/**)
     │   │   │   ├── AuthController.java            # Onboarding & authentication routes (/login, /register)
     │   │   │   ├── DashboardController.java       # Role-aware portal views (/dashboard?tab=donor|patient)
-    │   │   │   ├── DonorController.java           # Donor directory search & availability toggle (/donors)
+    │   │   │   ├── DonorController.java           # Donor directory search & request dispatch (/donors/**)
     │   │   │   ├── HomeController.java            # Public landing page route (/)
     │   │   │   ├── ProfileController.java         # User profile, role activation, and password management (/profile)
     │   │   │   └── RequestController.java         # Emergency blood requests lifecycle (/requests/**)
     │   │   ├── model/
     │   │   │   ├── AppUser.java                   # JPA entity representing users, credentials, and locations
     │   │   │   ├── BloodGroup.java                # Enumeration of 8 standard blood groups
-    │   │   │   ├── BloodRequest.java              # JPA entity representing emergency blood requests
-    │   │   │   ├── RequestStatus.java             # Enum: OPEN, ACCEPTED, COMPLETED, CANCELLED, REJECTED
+    │   │   │   ├── BloodRequest.java              # JPA entity with patient, targetDonor, acceptedDonor
+    │   │   │   ├── RequestStatus.java             # Enum: OPEN, ACCEPTED, COMPLETED, CANCELLED, REJECTED, CLOSED
     │   │   │   └── Role.java                      # Enum: DONOR, PATIENT, ADMIN
     │   │   ├── repository/
     │   │   │   ├── BloodRequestRepository.java    # Spring Data JPA repository for blood request queries
@@ -268,7 +290,7 @@ smart-blood-donor-finder/
     │   │   ├── security/
     │   │   │   └── CustomUserDetailsService.java  # UserDetailsService bridging database with Spring Security
     │   │   └── service/
-    │   │       ├── BloodRequestService.java       # Business logic for request matching and acceptance
+    │   │       ├── BloodRequestService.java       # Business logic for request matching, edit, close, and accept/reject
     │   │       └── UserService.java               # Business logic for user profiles, roles, and search
     │   └── resources/
     │       ├── application.properties             # Database connection, port 8080, Hibernate DDL settings
@@ -282,13 +304,14 @@ smart-blood-donor-finder/
     │           ├── admin-user-edit.html           # Admin edit user and role privileges view
     │           ├── admin-users.html               # Admin registered accounts overview
     │           ├── dashboard.html                 # Unified dashboard with Donor & Patient portal tabs
-    │           ├── donors.html                    # Privacy-protected donor search directory
+    │           ├── donors.html                    # Privacy-protected donor search directory with Send Request
     │           ├── fragments.html                 # Common UI components (Navigation bar, Alert toasts)
     │           ├── index.html                     # Public hero landing page
     │           ├── login.html                     # User authentication login view
     │           ├── profile.html                   # User profile, role toggles, and password update view
     │           ├── register.html                  # Multi-role user registration view
-    │           ├── request-detail.html            # Request details & mutual contact revelation view
+    │           ├── request-detail.html            # Request details, update/close & mutual contact view
+    │           ├── request-edit.html              # Emergency blood request update form
     │           └── request-form.html              # Emergency blood request creation form
     └── test/
         └── java/com/smartblood/
@@ -296,11 +319,12 @@ smart-blood-donor-finder/
             ├── controller/
             │   ├── AuthControllerTest.java        # Tests for registration and login authentication
             │   ├── DashboardControllerTest.java   # Tests for role tab switching and access control
-            │   ├── DonorControllerTest.java       # Tests for donor search and availability toggle
+            │   ├── DonorControllerTest.java       # Tests for donor search, send request, and availability toggle
             │   ├── HomeControllerTest.java        # Tests for landing page accessibility
-            │   └── ProfileControllerTest.java     # Tests for profile updates and dynamic role activation
+            │   ├── ProfileControllerTest.java     # Tests for profile updates and dynamic role activation
+            │   └── RequestControllerTest.java     # Tests for request creation, edit, close, accept, and reject
             └── service/
-                ├── BloodRequestServiceTest.java   # Tests for request lifecycle and matching constraints
+                ├── BloodRequestServiceTest.java   # Tests for request lifecycle, edit, close, and matching constraints
                 └── UserServiceTest.java           # Tests for BCrypt hashing and repository persistence
 ```
 
@@ -314,8 +338,8 @@ The application features a granular, multi-role security architecture powered by
 
 | Role Identifier | Description & Primary Capabilities |
 | :--- | :--- |
-| **`ROLE_DONOR`** | Registered blood donor. Can browse open emergency blood requests matching their blood group and city, accept open requests to exchange contact information, and toggle their personal donation availability on or off. |
-| **`ROLE_PATIENT`** | Patient or patient representative. Can create urgent blood requests specifying hospital location and units needed, search the privacy-protected donor directory, and manage/close active blood requests. |
+| **`ROLE_DONOR`** | Registered blood donor. Browses open emergency blood requests specifically matching their blood group and city (or direct requests sent to them), accepts or rejects requests to control consent, and toggles their personal donation availability on or off. Focused donor experience (redundant "Find other donors" navigation removed). |
+| **`ROLE_PATIENT`** | Patient or patient representative. Can create urgent blood requests specifying hospital location and units needed, search the privacy-protected donor directory, dispatch direct "Send Request" invitations to target donors, update request parameters via form, and close open requests with a single click. |
 | **`ROLE_DONOR` + `ROLE_PATIENT`** *(Dual Role)* | Complete dual functionality. The user has access to both the Donor Portal tab and Patient Portal tab on the unified dashboard. Can toggle roles with a single click. |
 | **`ROLE_ADMIN`** | System administrator. Holds unrestricted management access over all registered users (profile details, role escalation/revocation) and all blood requests (editing details, status overrides). |
 
@@ -326,15 +350,19 @@ The application features a granular, multi-role security architecture powered by
 | `/`, `/css/**`, `/js/**` | `GET` | Anonymous / Public | Accessible to all users without authentication. |
 | `/register` | `GET`, `POST` | Anonymous Only | New user registration (assigns `DONOR`, `PATIENT`, or both). |
 | `/login` | `GET`, `POST` | Anonymous Only | Form login authenticated against MySQL using BCrypt. |
-| `/dashboard` | `GET` | Authenticated (`DONOR`, `PATIENT`, `ADMIN`) | Role-aware dashboard displaying personalized tabs and active requests. |
+| `/dashboard` | `GET` | Authenticated (`DONOR`, `PATIENT`, `ADMIN`) | Role-aware dashboard displaying personalized tabs and active requests. Donor view displays exclusively matched requests. |
 | `/profile` | `GET`, `POST` | Authenticated (Any) | View and update profile information, manage roles, and change password. |
 | `/profile/availability` | `POST` | `DONOR` | Toggles donor discovery availability in search results. |
 | `/profile/roles/add` | `POST` | Authenticated (Non-Admin) | Activates `DONOR` or `PATIENT` role dynamically. |
 | `/profile/roles/remove` | `POST` | Authenticated (Multi-role) | Revokes a secondary role (must keep at least one role). |
 | `/donors`, `/donors/search` | `GET` | Authenticated (`DONOR`, `PATIENT`, `ADMIN`) | Search available donors; hides donor phone and email. |
-| `/requests/new` | `GET`, `POST` | `PATIENT` | Form to publish an emergency blood requirement. |
-| `/requests/{id}` | `GET` | Request Owner, Accepted Donor, or `ADMIN` | Request tracking details; shows mutual contact information. |
-| `/requests/{id}/accept` | `POST` | `DONOR` | Donor accepts an open request; validates blood group and city match. |
+| `/donors/{donorId}/request`, `/donors/{donorId}/accept` | `POST` | `PATIENT` | Sends an emergency blood request invitation directly to target donor. |
+| `/requests/new`, `/requests` | `GET`, `POST` | `PATIENT` | Form to publish an emergency blood requirement (or dispatch to target donor). |
+| `/requests/{id}` | `GET` | Request Owner, Target Donor, Accepted Donor, or `ADMIN` | Request tracking details; displays status, updates, and mutual contact information upon acceptance. |
+| `/requests/{id}/edit` | `GET`, `POST` | Request Owner or `ADMIN` | Patient updates blood request details (hospital address, units needed, notes). |
+| `/requests/{id}/close` | `POST` | Request Owner or `ADMIN` | Patient closes the open request, setting status to `CLOSED`. |
+| `/requests/{id}/accept` | `POST` | `DONOR` | Donor accepts an open request; validates blood group/city match or target donor authorization. |
+| `/requests/{id}/reject` | `POST` | `DONOR` | Donor rejects an open request; transitions status to `REJECTED`. |
 | `/requests/{id}/status` | `POST` | Request Owner, Accepted Donor, or `ADMIN` | Updates status to `COMPLETED` or `CANCELLED`. |
 | `/admin/**` | `GET`, `POST` | `ADMIN` Only | Dedicated admin console for user and request moderation. |
 
@@ -351,13 +379,18 @@ The application features a granular, multi-role security architecture powered by
 ### 6.2 Donor Directory & Privacy-Centric Search
 - **Search Criteria**: Search by blood group, city, and optional locality/area.
 - **Privacy Enforcement**: Public search results display only the donor's full name, blood group, city, and area locality. Phone numbers and email addresses are **redacted and marked as "Contact protected"**.
+- **Send Request Action**: Search result cards feature a prominent **"Send Request"** button. Clicking this does not bypass consent or auto-accept on the donor's behalf; instead, it sends an emergency request to that specific donor, enabling them to evaluate the request and either Accept or Reject.
 - **Availability Filter**: Only donors who have toggled `availableToDonate = true` are returned in search queries.
 
 ### 6.3 Emergency Blood Request & Matching Lifecycle
-- **Creation**: Patients submit blood requests with required blood group, units needed (1-10), city, area, hospital/blood bank address, and urgent notes.
-- **Validation**: Donors can only accept requests if their blood group strictly matches the request and their registered city matches the hospital city.
-- **Mutual Contact Revelation**: Once a donor clicks "Accept request", the request status transitions to `ACCEPTED`, and a special "Connection Established" panel unlocks, revealing both parties' phone numbers.
-- **Completion**: Either the patient or the accepted donor can close the request by marking it `COMPLETED` or `CANCELLED`.
+- **Creation**: Patients submit blood requests with required blood group, units needed (1-10), city, area, hospital/blood bank address, and urgent notes (or target a specific donor via directory).
+- **Donor Matched Filtering**: On the Donor Portal (`/dashboard?tab=donor`), the system displays **only matched blood requests**—requests that strictly match the donor's registered blood group and city, or requests targeted directly to them. Irrelevant requests are filtered out, and the "Find other donors" button is removed from the Donor Portal to keep donor focus exclusively on incoming needs.
+- **Two-Way Consent (Accept / Reject)**: Eligible donors can either click **"Accept request"** or **"Reject"** directly from their dashboard feed or the request detail page. Accepting transitions status to `ACCEPTED` and unlocks contact details; rejecting marks it `REJECTED` and clears it from the donor queue.
+- **Patient Update & Close Request**:
+  - **Update Form**: Patients can click "Update" on any open request to modify hospital location, units required, or emergency notes via a dedicated edit form (`/requests/{id}/edit`).
+  - **Close Request**: Patients can click "Close request" on any open request (`POST /requests/{id}/close`), transitioning the status to `CLOSED` when donor requirements are satisfied elsewhere.
+- **Mutual Contact Revelation**: Once an eligible donor accepts, the request status transitions to `ACCEPTED`, and a special "Connection Established" panel unlocks, revealing both parties' phone numbers.
+- **Completion**: Either the patient or the accepted donor can close an accepted request by marking it `COMPLETED` or `CANCELLED`.
 
 ### 6.4 Administration Console Module
 - **User Management (`/admin/users`)**: Administrators view all registered users with their active roles, blood groups, and locations. Administrators can edit user profiles, correct contact details, and modify assigned roles.
@@ -375,6 +408,7 @@ The application uses MySQL 8 as its underlying relational database with Hibernat
 erDiagram
     USERS ||--o{ USER_ROLES : has
     USERS ||--o{ BLOOD_REQUESTS : creates_as_patient
+    USERS ||--o{ BLOOD_REQUESTS : targeted_as_donor
     USERS ||--o{ BLOOD_REQUESTS : accepts_as_donor
 
     USERS {
@@ -399,6 +433,7 @@ erDiagram
     BLOOD_REQUESTS {
         bigint id PK
         bigint patient_id FK
+        bigint target_donor_id FK
         bigint accepted_donor_id FK
         varchar blood_group
         varchar city
@@ -446,6 +481,7 @@ Stores urgent patient blood transfusion requests and matching status.
 | :--- | :--- | :--- | :--- | :--- |
 | `id` | `BIGINT` | `NO` | Primary Key, Auto Increment | Unique blood request identifier. |
 | `patient_id` | `BIGINT` | `NO` | Foreign Key $\rightarrow$ `users(id)` | The patient user who created the request. |
+| `target_donor_id` | `BIGINT` | `YES` | Foreign Key $\rightarrow$ `users(id)` | Targeted donor invited via directory search. |
 | `accepted_donor_id`| `BIGINT` | `YES` | Foreign Key $\rightarrow$ `users(id)` | The donor who accepted the request. |
 | `blood_group` | `VARCHAR(50)` | `NO` | Enum (`A_POSITIVE`, `O_POSITIVE`, etc.) | Blood type required. |
 | `city` | `VARCHAR(100)` | `NO` | `NOT BLANK` | City where blood is required. |
@@ -453,7 +489,9 @@ Stores urgent patient blood transfusion requests and matching status.
 | `units_required` | `INT` | `NO` | `MIN(1)`, `MAX(10)` | Total number of blood units needed. |
 | `hospital_address`| `VARCHAR(1000)`| `NO` | `NOT BLANK` | Name and address of hospital/blood bank. |
 | `message` | `VARCHAR(1000)`| `YES` | Text | Clinical details, urgency notes, timings. |
-| `status` | `VARCHAR(50)` | `NO` | Default `OPEN` | Enum: `OPEN`, `ACCEPTED`, `COMPLETED`, `CANCELLED`, `REJECTED`. |
+| `status` | `VARCHAR(50)` | `NO` | Default `OPEN` | Enum: `OPEN`, `ACCEPTED`, `COMPLETED`, `CANCELLED`, `REJECTED`, `CLOSED`. |
+| `created_at` | `DATETIME` | `YES` | Default current timestamp | Request publication timestamp. |
+| `needed_by` | `DATETIME` | `YES` | Nullable timestamp | Target deadline for blood requirement. |
 | `created_at` | `DATETIME` | `YES` | Default current timestamp | Request publication timestamp. |
 | `needed_by` | `DATETIME` | `YES` | Nullable timestamp | Target deadline for blood requirement. |
 
@@ -686,7 +724,8 @@ The project incorporates automated unit and integration tests using **JUnit 5**,
 | `DashboardControllerTest` | Dashboard & Portal Switching | Authenticated access, default active tab selection (`donor` vs `patient`), and dual-role rendering. |
 | `DonorControllerTest` | Donor Directory & Availability | Directory search execution, availability toggle persistence, and contact masking verification. |
 | `ProfileControllerTest` | Profile & Dynamic Roles | Profile updates, dynamic role addition (`/profile/roles/add`), security context synchronization, password updating. |
-| `BloodRequestServiceTest` | Business Logic & Matching | Blood request creation, donor acceptance criteria (blood group matching, city matching), self-acceptance prevention, status transitions. |
+| `BloodRequestServiceTest` | Business Logic & Matching | Blood request creation, direct target donor dispatch, donor acceptance criteria, rejection, request editing, and one-click request closing. |
+| `RequestControllerTest` | Emergency Request Endpoints | Request creation with/without target donor, GET/POST edit form, close request endpoint, donor accept, and donor reject routes. |
 | `UserServiceTest` | User Persistence & Search | Password encryption on registration, multi-role persistence, donor geo-queries. |
 
 ### 11.2 Key Automated Test Results
@@ -695,7 +734,7 @@ Run all automated tests via Maven:
 mvn test
 ```
 **Results Summary**:
-- **Tests Executed**: 100% Pass
+- **Tests Executed**: 51 Automated Tests (100% Pass)
 - **Failures / Errors**: 0
 - **Code Coverage**: Core service and security routes fully covered.
 

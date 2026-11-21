@@ -5,7 +5,9 @@ import com.smartblood.repository.BloodRequestRepository;
 import com.smartblood.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class BloodRequestService {
@@ -25,6 +27,22 @@ public class BloodRequestService {
     public List<BloodRequest> openRequests() { return requests.findByStatusOrderByCreatedAtDesc(RequestStatus.OPEN); }
     public List<BloodRequest> forDonor(Long id) { return requests.findByAcceptedDonorIdOrderByCreatedAtDesc(id); }
     public List<BloodRequest> allRequests() { return requests.findAll(); }
+
+    public List<BloodRequest> matchedRequestsForDonor(AppUser donor) {
+        if (donor == null || donor.getBloodGroup() == null) {
+            return Collections.emptyList();
+        }
+        return requests.findByStatusOrderByCreatedAtDesc(RequestStatus.OPEN).stream()
+                .filter(r -> !r.getPatient().getId().equals(donor.getId()))
+                .filter(r -> r.getBloodGroup() == donor.getBloodGroup())
+                .filter(r -> {
+                    if (r.getTargetDonor() != null) {
+                        return r.getTargetDonor().getId().equals(donor.getId());
+                    }
+                    return donor.getCity() != null && r.getCity().equalsIgnoreCase(donor.getCity());
+                })
+                .collect(Collectors.toList());
+    }
 
     @Transactional
     public BloodRequest updateByAdmin(Long id, BloodRequest data) {
@@ -51,10 +69,28 @@ public class BloodRequestService {
         if (!donor.hasRole(Role.DONOR)) throw new IllegalArgumentException("Only donors can accept requests.");
         if (request.getPatient().getId().equals(donor.getId())) throw new IllegalArgumentException("You cannot accept your own blood request.");
         if (request.getStatus() != RequestStatus.OPEN) throw new IllegalArgumentException("This request is no longer open.");
+        if (request.getTargetDonor() != null && !request.getTargetDonor().getId().equals(donor.getId())) {
+            throw new IllegalArgumentException("This request was directed to another donor.");
+        }
         if (donor.getBloodGroup() != request.getBloodGroup()) throw new IllegalArgumentException("Your blood group does not match this request.");
-        if (!donor.getCity().equalsIgnoreCase(request.getCity())) throw new IllegalArgumentException("This request is outside your registered city.");
+        if (request.getTargetDonor() == null && !donor.getCity().equalsIgnoreCase(request.getCity())) {
+            throw new IllegalArgumentException("This request is outside your registered city.");
+        }
         request.setAcceptedDonor(donor);
         request.setStatus(RequestStatus.ACCEPTED);
+        return requests.save(request);
+    }
+
+    @Transactional
+    public BloodRequest reject(Long requestId, AppUser donor) {
+        BloodRequest request = requests.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        if (!donor.hasRole(Role.DONOR)) throw new IllegalArgumentException("Only donors can reject requests.");
+        if (request.getPatient().getId().equals(donor.getId())) throw new IllegalArgumentException("You cannot reject your own blood request.");
+        if (request.getStatus() != RequestStatus.OPEN) throw new IllegalArgumentException("This request is no longer open.");
+        if (request.getTargetDonor() != null && !request.getTargetDonor().getId().equals(donor.getId())) {
+            throw new IllegalArgumentException("This request was directed to another donor.");
+        }
+        request.setStatus(RequestStatus.REJECTED);
         return requests.save(request);
     }
 
@@ -66,6 +102,58 @@ public class BloodRequestService {
         if (!owner && !assignedDonor && !actor.hasRole(Role.ADMIN)) throw new SecurityException("Not authorized.");
         if (status == RequestStatus.ACCEPTED) throw new IllegalArgumentException("Use the accept action.");
         request.setStatus(status);
+        return requests.save(request);
+    }
+
+    @Transactional
+    public BloodRequest updateByUser(Long id, AppUser actor, BloodRequest data) {
+        BloodRequest request = requests.findById(id).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        boolean owner = request.getPatient().getId().equals(actor.getId());
+        if (!owner && !actor.hasRole(Role.ADMIN)) throw new SecurityException("Not authorized.");
+        if (data.getBloodGroup() == null) throw new IllegalArgumentException("Blood group is required.");
+        if (data.getCity() == null || data.getCity().trim().isEmpty()) throw new IllegalArgumentException("City cannot be empty.");
+        if (data.getHospitalAddress() == null || data.getHospitalAddress().trim().isEmpty()) throw new IllegalArgumentException("Hospital address cannot be empty.");
+        if (data.getUnitsRequired() == null || data.getUnitsRequired() < 1) throw new IllegalArgumentException("Units required must be at least 1.");
+
+        request.setBloodGroup(data.getBloodGroup());
+        request.setCity(data.getCity().trim());
+        request.setArea(data.getArea() != null ? data.getArea().trim() : null);
+        request.setUnitsRequired(data.getUnitsRequired());
+        request.setHospitalAddress(data.getHospitalAddress().trim());
+        request.setMessage(data.getMessage() != null ? data.getMessage().trim() : null);
+        request.setNeededBy(data.getNeededBy());
+        if (data.getStatus() != null && data.getStatus() != RequestStatus.ACCEPTED) {
+            request.setStatus(data.getStatus());
+        }
+        return requests.save(request);
+    }
+
+    @Transactional
+    public BloodRequest closeRequest(Long requestId, AppUser actor) {
+        return updateStatus(requestId, actor, RequestStatus.CLOSED);
+    }
+
+    @Transactional
+    public BloodRequest sendRequestToDonor(Long requestId, AppUser targetDonor, AppUser patient) {
+        BloodRequest request = requests.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        boolean owner = request.getPatient().getId().equals(patient.getId());
+        if (!owner && !patient.hasRole(Role.ADMIN)) throw new SecurityException("Not authorized.");
+        if (!targetDonor.hasRole(Role.DONOR)) throw new IllegalArgumentException("Selected user is not registered as a donor.");
+        if (request.getPatient().getId().equals(targetDonor.getId())) throw new IllegalArgumentException("You cannot send a blood request to yourself.");
+        if (request.getStatus() != RequestStatus.OPEN) throw new IllegalArgumentException("This request is no longer open.");
+        if (targetDonor.getBloodGroup() != request.getBloodGroup()) throw new IllegalArgumentException("Donor blood group does not match this request.");
+        request.setTargetDonor(targetDonor);
+        request.setStatus(RequestStatus.OPEN);
+        return requests.save(request);
+    }
+
+    @Transactional
+    public BloodRequest createWithTargetDonor(BloodRequest request, AppUser patient, AppUser targetDonor) {
+        if (!targetDonor.hasRole(Role.DONOR)) throw new IllegalArgumentException("Selected user is not registered as a donor.");
+        if (patient.getId().equals(targetDonor.getId())) throw new IllegalArgumentException("You cannot send a blood request to yourself.");
+        request.setPatient(patient);
+        request.setTargetDonor(targetDonor);
+        request.setStatus(RequestStatus.OPEN);
         return requests.save(request);
     }
 

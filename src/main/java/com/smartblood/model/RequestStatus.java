@@ -1,5 +1,5 @@
 package com.smartblood.model;
 
 public enum RequestStatus {
-    OPEN, ACCEPTED, COMPLETED, CANCELLED, REJECTED
+    OPEN, ACCEPTED, COMPLETED, CANCELLED, REJECTED, CLOSED
 }

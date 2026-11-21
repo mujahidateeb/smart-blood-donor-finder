@@ -1,8 +1,82 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Register</title><link rel="stylesheet" href="/css/style.css"></head>
-<body><div th:replace="fragments :: nav"></div><main class="form-wrap"><section class="form-card wide"><h1>Create your account</h1><p class="muted">Join the community and help connect people who need blood.</p><div th:replace="fragments :: alerts"></div>
-<form th:action="@{/register}" th:object="${user}" method="post">
-<div class="form-grid"><div><label>Full name</label><input th:field="*{fullName}" required></div><div><label>Email</label><input type="email" th:field="*{email}" required></div>
-<div><label>Password</label><input type="password" th:field="*{password}" minlength="8" required></div><div><label>Account type</label><select th:field="*{role}" required><option value="">Choose role</option><option th:each="r : ${roles}" th:value="${r}" th:text="${r}"></option></select></div>
-<div><label>Blood group</label><select th:field="*{bloodGroup}" required><option value="">Choose blood group</option><option th:each="g : ${T(com.smartblood.model.BloodGroup).values()}" th:value="${g}" th:text="${g}"></option></select></div>
-<div><label>Phone number</label><input th:field="*{phone}" placeholder="Mobile number"></div><div><label>City</label><input th:field="*{city}" required></div><div><label>Area / locality</label><input th:field="*{area}"></div></div>
-<button class="btn primary full">Create account</button></form><p class="muted center">Already registered? <a href="/login">Sign in</a></p></section></main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="form-wrap">
+    <section class="form-card wide">
+        <h1>Create your account</h1>
+        <p class="muted">Join the community. You can join as a donor, a patient, or both!</p>
+        <div th:replace="fragments :: alerts"></div>
+
+        <form th:action="@{/register}" th:object="${user}" method="post">
+            <div class="form-grid">
+                <div>
+                    <label>Full name</label>
+                    <input th:field="*{fullName}" required placeholder="Your full name">
+                </div>
+                <div>
+                    <label>Email</label>
+                    <input type="email" th:field="*{email}" required placeholder="you@example.com">
+                </div>
+                <div>
+                    <label>Password</label>
+                    <input type="password" th:field="*{password}" minlength="8" required placeholder="Minimum 8 characters">
+                </div>
+                <div>
+                    <label>Blood group</label>
+                    <select th:field="*{bloodGroup}" required>
+                        <option value="">Choose blood group</option>
+                        <option th:each="g : ${T(com.smartblood.model.BloodGroup).values()}" th:value="${g}" th:text="${g}"></option>
+                    </select>
+                </div>
+
+                <div class="span-2">
+                    <label>Account Roles (Choose one or both):</label>
+                    <div class="role-selection-group">
+                        <label class="checkbox-row">
+                            <input type="checkbox" name="selectedRoles" value="DONOR" checked>
+                            <div>
+                                <b>🩸 Blood Donor</b>
+                                <small class="muted">I can donate blood to help people in emergencies.</small>
+                            </div>
+                        </label>
+                        <label class="checkbox-row">
+                            <input type="checkbox" name="selectedRoles" value="PATIENT">
+                            <div>
+                                <b>🏥 Patient / Requester</b>
+                                <small class="muted">I may need blood or want to request blood for patients.</small>
+                            </div>
+                        </label>
+                    </div>
+                    <small class="muted" style="margin-top:6px;display:block;">A donor can be a patient, and a patient can be a donor at any time.</small>
+                </div>
+
+                <div>
+                    <label>Phone number</label>
+                    <input th:field="*{phone}" placeholder="Mobile number">
+                </div>
+                <div>
+                    <label>City</label>
+                    <input th:field="*{city}" required placeholder="e.g. Bengaluru">
+                </div>
+                <div class="span-2">
+                    <label>Area / locality</label>
+                    <input th:field="*{area}" placeholder="e.g. Indiranagar">
+                </div>
+            </div>
+
+            <button class="btn primary full">Create account</button>
+        </form>
+
+        <p class="muted center">Already registered? <a href="/login">Sign in</a></p>
+    </section>
+</main>
+</body>
+</html>

@@ -48,7 +48,8 @@ public class BloodRequestService {
     @Transactional
     public BloodRequest accept(Long requestId, AppUser donor) {
         BloodRequest request = requests.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
-        if (donor.getRole() != Role.DONOR) throw new IllegalArgumentException("Only donors can accept requests.");
+        if (!donor.hasRole(Role.DONOR)) throw new IllegalArgumentException("Only donors can accept requests.");
+        if (request.getPatient().getId().equals(donor.getId())) throw new IllegalArgumentException("You cannot accept your own blood request.");
         if (request.getStatus() != RequestStatus.OPEN) throw new IllegalArgumentException("This request is no longer open.");
         if (donor.getBloodGroup() != request.getBloodGroup()) throw new IllegalArgumentException("Your blood group does not match this request.");
         if (!donor.getCity().equalsIgnoreCase(request.getCity())) throw new IllegalArgumentException("This request is outside your registered city.");
@@ -62,7 +63,7 @@ public class BloodRequestService {
         BloodRequest request = requests.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
         boolean owner = request.getPatient().getId().equals(actor.getId());
         boolean assignedDonor = request.getAcceptedDonor() != null && request.getAcceptedDonor().getId().equals(actor.getId());
-        if (!owner && !assignedDonor && actor.getRole() != Role.ADMIN) throw new SecurityException("Not authorized.");
+        if (!owner && !assignedDonor && !actor.hasRole(Role.ADMIN)) throw new SecurityException("Not authorized.");
         if (status == RequestStatus.ACCEPTED) throw new IllegalArgumentException("Use the accept action.");
         request.setStatus(status);
         return requests.save(request);
@@ -72,7 +73,7 @@ public class BloodRequestService {
         BloodRequest request = requests.findById(id).orElseThrow(() -> new IllegalArgumentException("Request not found."));
         boolean owner = request.getPatient().getId().equals(actor.getId());
         boolean assignedDonor = request.getAcceptedDonor() != null && request.getAcceptedDonor().getId().equals(actor.getId());
-        if (!owner && !assignedDonor && actor.getRole() != Role.ADMIN) throw new SecurityException("Not authorized.");
+        if (!owner && !assignedDonor && !actor.hasRole(Role.ADMIN)) throw new SecurityException("Not authorized.");
         return request;
     }
 }

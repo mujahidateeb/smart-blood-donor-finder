@@ -1,3 +1,78 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Edit user</title><link rel="stylesheet" href="/css/style.css"></head>
-<body><div th:replace="fragments :: nav"></div><main class="form-wrap"><section class="form-card"><div th:replace="fragments :: alerts"></div><span class="eyebrow">ADMINISTRATION</span><h1>Edit user</h1><p class="muted" th:text="'Account role: ' + ${user.role}">Account</p>
-<form th:action="@{'/admin/users/' + ${user.id}}" th:object="${user}" method="post"><label>Full name<input th:field="*{fullName}" required></label><label>Email<input type="email" th:field="*{email}" required></label><label>Phone<input th:field="*{phone}"></label><label>Blood group<select th:field="*{bloodGroup}"><option value="">Not specified</option><option th:each="group : ${bloodGroups}" th:value="${group}" th:text="${group}"></option></select></label><label>City<input th:field="*{city}"></label><label>Area<input th:field="*{area}"></label><label>Available to donate<select th:field="*{availableToDonate}"><option th:value="true">Yes</option><option th:value="false">No</option></select></label><button class="btn primary full">Save user</button></form><p><a href="/admin/users">← Back to users</a></p></section></main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit user - Administration</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="form-wrap">
+    <section class="form-card wide">
+        <div th:replace="fragments :: alerts"></div>
+        <span class="eyebrow">ADMINISTRATION</span>
+        <h1>Edit user</h1>
+        <p class="muted" th:text="'Current roles: ' + ${user.rolesDisplay}">Account</p>
+
+        <form th:action="@{'/admin/users/' + ${user.id}}" th:object="${user}" method="post">
+            <div class="form-grid">
+                <div>
+                    <label>Full name</label>
+                    <input th:field="*{fullName}" required>
+                </div>
+                <div>
+                    <label>Email</label>
+                    <input type="email" th:field="*{email}" required>
+                </div>
+
+                <div class="span-2">
+                    <label>Assigned Roles:</label>
+                    <div class="role-selection-group">
+                        <label class="checkbox-row" th:each="r : ${allRoles}">
+                            <input type="checkbox" name="selectedRoles" th:value="${r}" th:checked="${user.hasRole(r)}">
+                            <div>
+                                <b th:text="${r}">ROLE</b>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label>Phone</label>
+                    <input th:field="*{phone}">
+                </div>
+                <div>
+                    <label>Blood group</label>
+                    <select th:field="*{bloodGroup}">
+                        <option value="">Not specified</option>
+                        <option th:each="group : ${bloodGroups}" th:value="${group}" th:text="${group}"></option>
+                    </select>
+                </div>
+                <div>
+                    <label>City</label>
+                    <input th:field="*{city}">
+                </div>
+                <div>
+                    <label>Area</label>
+                    <input th:field="*{area}">
+                </div>
+                <div class="span-2">
+                    <label>Available to donate</label>
+                    <select th:field="*{availableToDonate}">
+                        <option th:value="true">Yes</option>
+                        <option th:value="false">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="actions" style="margin-top:20px;">
+                <button class="btn primary">Save user</button>
+                <a href="/admin/users" class="btn secondary">Back to users</a>
+            </div>
+        </form>
+    </section>
+</main>
+</body>
+</html>

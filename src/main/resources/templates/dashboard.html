@@ -1,14 +1,178 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard</title><link rel="stylesheet" href="/css/style.css"></head>
-<body><div th:replace="fragments :: nav"></div><main class="container"><div th:replace="fragments :: alerts"></div>
-<div class="page-heading"><div><span class="eyebrow">YOUR ACCOUNT</span><h1 th:text="'Hello, ' + ${user.fullName}">Dashboard</h1><p class="muted" th:text="${user.role} + ' · ' + ${user.bloodGroup} + ' · ' + ${user.city} + (${user.area != null and !user.area.empty} ? ' (' + ${user.area} + ')' : '')">Profile</p></div><div><a href="/profile" class="btn secondary">Edit Profile</a></div></div>
-<section th:if="${user.role.name() == 'PATIENT'}"><div class="section-heading"><h2>Your blood requests</h2><a class="btn primary" href="/requests/new">+ New emergency request</a></div>
-<div class="empty" th:if="${#lists.isEmpty(requests)}">You have not created any requests yet.</div>
-<div class="data-card" th:each="r : ${requests}"><div><b th:text="${r.bloodGroup}">O_POSITIVE</b><p th:text="${r.city} + ' · ' + ${r.area}"></p><small th:text="${r.status}"></small></div><a th:href="@{'/requests/' + ${r.id}}">View details →</a></div></section>
-<section th:if="${user.role.name() == 'DONOR'}">
-<div class="data-card" style="margin-bottom:24px;"><div><b>Donation Availability: </b><span th:if="${user.availableToDonate}" class="status" style="background:#eaf8ee;color:#216b37;">Available</span><span th:unless="${user.availableToDonate}" class="status" style="background:#fff0f0;color:#a32232;">Unavailable</span><p class="muted">Control whether you appear in search results for blood requests.</p></div><form th:action="@{/profile/availability}" method="post"><input type="hidden" name="available" th:value="${!user.availableToDonate}"><button class="btn secondary" th:text="${user.availableToDonate} ? 'Mark as Unavailable' : 'Mark as Available'"></button></form></div>
-<div class="section-heading"><h2>Open blood requests near you</h2><a href="/donors" class="btn secondary">Find donors</a></div>
-<div class="empty" th:if="${#lists.isEmpty(openRequests)}">There are no open requests right now.</div>
-<div class="data-card" th:each="r : ${openRequests}"><div><b th:text="${r.bloodGroup}">O_POSITIVE</b><p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)'"></p><small th:text="${r.message}"></small></div><form th:action="@{/requests/{id}/accept(id=${r.id})}" method="post"><button class="btn primary">Accept request</button></form></div>
-<h2 class="mt">Requests you accepted</h2><div class="data-card" th:each="r : ${myAcceptedRequests}"><span th:text="${r.bloodGroup} + ' · ' + ${r.status}"></span><a th:href="@{'/requests/' + ${r.id}}">View details →</a></div></section>
-<section th:if="${user.role.name() == 'ADMIN'}"><div class="section-heading"><div><h2>Administration</h2><p class="muted">Review and update registered users and blood requests.</p></div><div><a class="btn primary" href="/admin/users">Manage users</a> <a class="btn secondary" href="/admin/requests">Manage requests</a></div></div></section>
-</main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="container">
+    <div th:replace="fragments :: alerts"></div>
+
+    <div class="page-heading">
+        <div>
+            <span class="eyebrow">YOUR ACCOUNT</span>
+            <h1 th:text="'Hello, ' + ${user.fullName}">Dashboard</h1>
+            <div class="role-badges" style="margin: 6px 0 10px 0;">
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).DONOR)}" class="role-chip chip-donor">🩸 Donor</span>
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}" class="role-chip chip-patient">🏥 Patient</span>
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).ADMIN)}" class="role-chip chip-admin">⚙️ Admin</span>
+            </div>
+            <p class="muted" th:text="${user.bloodGroup} + ' · ' + ${user.city} + (${user.area != null and !user.area.empty} ? ' (' + ${user.area} + ')' : '')">Profile</p>
+        </div>
+        <div class="actions">
+            <a href="/profile" class="btn secondary">Edit Profile & Roles</a>
+        </div>
+    </div>
+
+    <!-- Separate Donor and Patient Tabs -->
+    <div class="tabs-container">
+        <div class="tab-buttons">
+            <button type="button"
+                    class="tab-button"
+                    id="donor-tab-btn"
+                    th:classappend="${activeTab == 'donor'} ? ' active' : ''"
+                    onclick="switchDashboardTab('donor')">
+                <span class="tab-icon">🩸</span> Donor Portal
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).DONOR)}" class="tab-badge">Active</span>
+            </button>
+            <button type="button"
+                    class="tab-button"
+                    id="patient-tab-btn"
+                    th:classappend="${activeTab == 'patient'} ? ' active' : ''"
+                    onclick="switchDashboardTab('patient')">
+                <span class="tab-icon">🏥</span> Patient Portal
+                <span th:if="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}" class="tab-badge">Active</span>
+            </button>
+            <button th:if="${user.hasRole(T(com.smartblood.model.Role).ADMIN)}"
+                    type="button"
+                    class="tab-button"
+                    id="admin-tab-btn"
+                    th:classappend="${activeTab == 'admin'} ? ' active' : ''"
+                    onclick="switchDashboardTab('admin')">
+                <span class="tab-icon">⚙️</span> Administration
+            </button>
+        </div>
+    </div>
+
+    <!-- DONOR TAB CONTENT -->
+    <div class="tab-pane" id="donor-tab-content" th:classappend="${activeTab == 'donor'} ? ' active' : ''">
+        <div th:if="${user.hasRole(T(com.smartblood.model.Role).DONOR)}">
+            <div class="data-card" style="margin-bottom:24px;">
+                <div>
+                    <b>Donation Availability: </b>
+                    <span th:if="${user.availableToDonate}" class="status" style="background:#eaf8ee;color:#216b37;">Available</span>
+                    <span th:unless="${user.availableToDonate}" class="status" style="background:#fff0f0;color:#a32232;">Unavailable</span>
+                    <p class="muted">Control whether you appear in search results for blood requests matching your blood group.</p>
+                </div>
+                <form th:action="@{/profile/availability}" method="post">
+                    <input type="hidden" name="available" th:value="${!user.availableToDonate}">
+                    <button class="btn secondary" th:text="${user.availableToDonate} ? 'Mark as Unavailable' : 'Mark as Available'"></button>
+                </form>
+            </div>
+
+            <div class="section-heading">
+                <div>
+                    <h2>Open emergency requests near you</h2>
+                    <p class="muted">Requests created by patients looking for blood donors.</p>
+                </div>
+                <a href="/donors" class="btn secondary">Find other donors</a>
+            </div>
+
+            <div class="empty" th:if="${#lists.isEmpty(openRequests)}">There are no open requests right now.</div>
+            <div class="data-card" th:each="r : ${openRequests}">
+                <div>
+                    <b th:text="${r.bloodGroup}">O_POSITIVE</b>
+                    <p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)'"></p>
+                    <small th:text="${r.message}"></small>
+                </div>
+                <form th:action="@{/requests/{id}/accept(id=${r.id})}" method="post">
+                    <button class="btn primary">Accept request</button>
+                </form>
+            </div>
+
+            <h2 class="mt">Requests you accepted</h2>
+            <div class="empty" th:if="${#lists.isEmpty(myAcceptedRequests)}">You have not accepted any requests yet.</div>
+            <div class="data-card" th:each="r : ${myAcceptedRequests}">
+                <div>
+                    <b th:text="${r.bloodGroup}">O_POSITIVE</b>
+                    <p th:text="${r.city} + ' · ' + ${r.area} + ' · Hospital: ' + ${r.hospitalAddress}"></p>
+                    <small th:text="'Status: ' + ${r.status}"></small>
+                </div>
+                <a th:href="@{'/requests/' + ${r.id}}" class="btn secondary">View details & contact →</a>
+            </div>
+        </div>
+
+        <!-- If user is not yet a Donor -->
+        <div th:unless="${user.hasRole(T(com.smartblood.model.Role).DONOR)}" class="role-cta-card">
+            <h3>Become a Blood Donor</h3>
+            <p>You are currently registered as a Patient. You can also become a Donor to donate blood, accept open emergency requests, and help save lives in your community!</p>
+            <form th:action="@{/profile/roles/add}" method="post">
+                <input type="hidden" name="role" value="DONOR">
+                <button type="submit" class="btn primary">🩸 Activate Donor Role</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PATIENT TAB CONTENT -->
+    <div class="tab-pane" id="patient-tab-content" th:classappend="${activeTab == 'patient'} ? ' active' : ''">
+        <div th:if="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}">
+            <div class="quick-action-bar">
+                <a class="btn primary" href="/requests/new">+ New emergency request</a>
+                <a class="btn secondary" href="/donors">🔍 Find blood donors directory</a>
+            </div>
+
+            <div class="section-heading">
+                <div>
+                    <h2>Your blood requests</h2>
+                    <p class="muted">Track all emergency blood requests you have posted.</p>
+                </div>
+            </div>
+
+            <div class="empty" th:if="${#lists.isEmpty(requests)}">
+                You have not created any requests yet. If you need blood, click "+ New emergency request" above.
+            </div>
+            <div class="data-card" th:each="r : ${requests}">
+                <div>
+                    <b th:text="${r.bloodGroup}">O_POSITIVE</b>
+                    <p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)' + ' · Hospital: ' + ${r.hospitalAddress}"></p>
+                    <small>
+                        Status: <span class="status" th:text="${r.status}"></span>
+                        <span th:if="${r.status.name() == 'ACCEPTED'}" style="color:#216b37;font-weight:700;"> — Matched with donor!</span>
+                    </small>
+                </div>
+                <a th:href="@{'/requests/' + ${r.id}}" class="btn secondary">View details →</a>
+            </div>
+        </div>
+
+        <!-- If user is not yet a Patient -->
+        <div th:unless="${user.hasRole(T(com.smartblood.model.Role).PATIENT)}" class="role-cta-card">
+            <h3>Enable Patient Features</h3>
+            <p>You are currently registered as a Donor. Need blood for yourself, a family member, or a friend? Activate Patient features to create emergency blood requests!</p>
+            <form th:action="@{/profile/roles/add}" method="post">
+                <input type="hidden" name="role" value="PATIENT">
+                <button type="submit" class="btn primary">🏥 Activate Patient Role</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN TAB CONTENT -->
+    <div th:if="${user.hasRole(T(com.smartblood.model.Role).ADMIN)}" class="tab-pane" id="admin-tab-content" th:classappend="${activeTab == 'admin'} ? ' active' : ''">
+        <div class="section-heading">
+            <div>
+                <h2>Administration Console</h2>
+                <p class="muted">Review and update registered users and blood requests across the system.</p>
+            </div>
+            <div>
+                <a class="btn primary" href="/admin/users">Manage users</a>
+                <a class="btn secondary" href="/admin/requests">Manage requests</a>
+            </div>
+        </div>
+    </div>
+
+</main>
+</body>
+</html>

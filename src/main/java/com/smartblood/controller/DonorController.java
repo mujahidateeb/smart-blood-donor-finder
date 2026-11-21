@@ -30,7 +30,7 @@ public class DonorController {
     @PostMapping("/profile/availability")
     public String availability(@RequestParam Boolean available, Authentication auth) {
         AppUser user = users.byEmail(auth.getName());
-        if (user.getRole() == Role.DONOR) {
+        if (user.hasRole(Role.DONOR)) {
             user.setAvailableToDonate(available);
             users.saveProfile(user);
         }

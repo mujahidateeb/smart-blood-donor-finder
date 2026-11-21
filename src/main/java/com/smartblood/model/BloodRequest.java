@@ -41,6 +41,7 @@ public class BloodRequest {
     private LocalDateTime neededBy;
 
     public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     public AppUser getPatient() { return patient; }
     public void setPatient(AppUser patient) { this.patient = patient; }
     public AppUser getAcceptedDonor() { return acceptedDonor; }

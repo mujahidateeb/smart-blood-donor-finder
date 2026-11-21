@@ -18,7 +18,14 @@ public class RequestController {
     }
 
     @GetMapping("/requests/new")
-    public String newForm(Model model) {
+    public String newForm(Authentication auth, Model model, RedirectAttributes redirect) {
+        if (auth != null) {
+            AppUser user = users.byEmail(auth.getName());
+            if (!user.hasRole(Role.PATIENT)) {
+                redirect.addFlashAttribute("error", "You need the Patient role to create blood requests. You can activate it on the Patient tab.");
+                return "redirect:/dashboard?tab=patient";
+            }
+        }
         model.addAttribute("request", new BloodRequest());
         model.addAttribute("groups", BloodGroup.values());
         return "request-form";
@@ -27,7 +34,7 @@ public class RequestController {
     @PostMapping("/requests")
     public String create(@ModelAttribute BloodRequest request, Authentication auth, RedirectAttributes redirect) {
         AppUser patient = users.byEmail(auth.getName());
-        if (patient.getRole() != Role.PATIENT) return "redirect:/access-denied";
+        if (!patient.hasRole(Role.PATIENT)) return "redirect:/access-denied";
         requests.create(request, patient);
         redirect.addFlashAttribute("success", "Blood request created.");
         return "redirect:/dashboard";

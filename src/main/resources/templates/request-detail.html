@@ -1,7 +1,78 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Request details</title><link rel="stylesheet" href="/css/style.css"></head>
-<body><div th:replace="fragments :: nav"></div><main class="container narrow"><span class="eyebrow">REQUEST TRACKING</span><h1>Blood request details</h1><div class="detail-card">
-<div class="status" th:text="${request.status}"></div><h2 th:text="${request.bloodGroup} + ' blood required'"></h2>
-<p><b>Location:</b> <span th:text="${request.city} + ' · ' + ${request.area}"></span></p><p><b>Units:</b> <span th:text="${request.unitsRequired}"></span></p><p><b>Hospital:</b> <span th:text="${request.hospitalAddress}"></span></p><p><b>Message:</b> <span th:text="${request.message}"></span></p>
-<div th:if="${request.status.name() == 'ACCEPTED'}" class="contact-panel"><h3>Connection established</h3><p><b>Patient:</b> <span th:text="${request.patient.fullName}"></span></p><p><b>Patient phone:</b> <span th:text="${request.patient.phone}"></span></p><p th:if="${request.acceptedDonor != null}"><b>Donor:</b> <span th:text="${request.acceptedDonor.fullName}"></span> · <span th:text="${request.acceptedDonor.phone}"></span></p><small>Contact details are visible only to the patient and the donor who accepted this request.</small></div>
-<form th:if="${request.status.name() == 'ACCEPTED'}" th:action="@{'/requests/' + ${request.id} + '/status}" method="post" class="actions"><button name="status" value="COMPLETED" class="btn primary">Mark completed</button><button name="status" value="CANCELLED" class="btn secondary">Cancel request</button></form>
-</div><a href="/dashboard">← Back to dashboard</a></main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Request details - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="container narrow">
+    <div th:replace="fragments :: alerts"></div>
+    <span class="eyebrow">REQUEST TRACKING</span>
+    <h1>Blood request details</h1>
+
+    <div class="detail-card">
+        <div class="status" th:classappend="'status-' + ${#strings.toLowerCase(request.status)}" th:text="${request.status}"></div>
+        <h2 th:text="${request.bloodGroup} + ' blood required'"></h2>
+
+        <p><b>Location:</b> <span th:text="${request.city} + (${request.area != null and !request.area.empty} ? ' · ' + ${request.area} : '')"></span></p>
+        <p><b>Units:</b> <span th:text="${request.unitsRequired}"></span> unit(s)</p>
+        <p><b>Hospital:</b> <span th:text="${request.hospitalAddress}"></span></p>
+        <p th:if="${request.message != null and !request.message.empty}"><b>Message:</b> <span th:text="${request.message}"></span></p>
+        <p th:if="${request.neededBy != null}"><b>Needed by:</b> <span th:text="${#temporals.format(request.neededBy, 'dd MMM yyyy HH:mm')}"></span></p>
+        <p th:if="${request.createdAt != null}"><small class="muted" th:text="'Created on: ' + ${#temporals.format(request.createdAt, 'dd MMM yyyy HH:mm')}"></small></p>
+
+        <!-- Mutual Contact Revealed when Status is ACCEPTED -->
+        <div th:if="${request.status.name() == 'ACCEPTED'}" class="contact-panel">
+            <h3>Connection established</h3>
+            <p><b>Patient:</b> <span th:text="${request.patient.fullName}"></span></p>
+            <p><b>Patient phone:</b> <span th:text="${request.patient.phone}"></span></p>
+            <p><b>Patient email:</b> <span th:text="${request.patient.email}"></span></p>
+            <div th:if="${request.acceptedDonor != null}" style="margin-top:12px;padding-top:12px;border-top:1px dashed #d9efdf;">
+                <p><b>Donor:</b> <span th:text="${request.acceptedDonor.fullName}"></span></p>
+                <p><b>Donor phone:</b> <span th:text="${request.acceptedDonor.phone}"></span></p>
+                <p><b>Donor email:</b> <span th:text="${request.acceptedDonor.email}"></span></p>
+            </div>
+            <small>Contact details are visible only to the patient and the donor who accepted this request.</small>
+        </div>
+
+        <!-- Action buttons for Patient (Owner) or Admin -->
+        <div th:if="${isOwner or isAdmin}" class="actions" style="margin-top:24px;flex-wrap:wrap;">
+            <!-- Update Request Form button -->
+            <a th:if="${request.status.name() == 'OPEN' or request.status.name() == 'ACCEPTED'}"
+               th:href="@{'/requests/' + ${request.id} + '/edit'}"
+               class="btn secondary">✏️ Update request</a>
+
+            <!-- Close Request button -->
+            <form th:if="${request.status.name() == 'OPEN' or request.status.name() == 'ACCEPTED'}"
+                  th:action="@{'/requests/' + ${request.id} + '/close'}"
+                  method="post"
+                  style="margin:0;"
+                  onsubmit="return confirm('Are you sure you want to close this blood request?');">
+                <button type="submit" class="btn secondary" style="color:var(--red);">✖ Close request</button>
+            </form>
+
+            <!-- Mark Completed button for Accepted requests -->
+            <form th:if="${request.status.name() == 'ACCEPTED'}"
+                  th:action="@{'/requests/' + ${request.id} + '/status'}"
+                  method="post"
+                  style="margin:0;">
+                <button name="status" value="COMPLETED" class="btn primary">✓ Mark completed</button>
+            </form>
+        </div>
+
+        <!-- Action buttons for Assigned Donor (if donor is viewing and request is accepted) -->
+        <div th:if="${isDonor and !isOwner and request.status.name() == 'ACCEPTED'}" class="actions" style="margin-top:24px;">
+            <form th:action="@{'/requests/' + ${request.id} + '/status'}" method="post" style="margin:0;">
+                <button name="status" value="COMPLETED" class="btn primary">✓ Mark completed</button>
+            </form>
+        </div>
+    </div>
+
+    <a href="/dashboard?tab=patient">← Back to dashboard</a>
+</main>
+</body>
+</html>

@@ -18,26 +18,52 @@ public class RequestController {
     }
 
     @GetMapping("/requests/new")
-    public String newForm(Authentication auth, Model model, RedirectAttributes redirect) {
+    public String newForm(@RequestParam(required = false) Long donorId,
+                          Authentication auth, Model model, RedirectAttributes redirect) {
         if (auth != null) {
             AppUser user = users.byEmail(auth.getName());
             if (!user.hasRole(Role.PATIENT)) {
-                redirect.addFlashAttribute("error", "You need the Patient role to create blood requests. You can activate it on the Patient tab.");
-                return "redirect:/dashboard?tab=patient";
+                user.addRole(Role.PATIENT);
+                users.saveProfile(user);
             }
         }
-        model.addAttribute("request", new BloodRequest());
+        BloodRequest request = new BloodRequest();
+        if (donorId != null) {
+            try {
+                AppUser donor = users.byId(donorId);
+                request.setBloodGroup(donor.getBloodGroup());
+                request.setCity(donor.getCity());
+                request.setArea(donor.getArea());
+                model.addAttribute("targetDonor", donor);
+            } catch (Exception ignored) {}
+        }
+        model.addAttribute("request", request);
         model.addAttribute("groups", BloodGroup.values());
         return "request-form";
     }
 
     @PostMapping("/requests")
-    public String create(@ModelAttribute BloodRequest request, Authentication auth, RedirectAttributes redirect) {
+    public String create(@ModelAttribute BloodRequest request,
+                         @RequestParam(required = false) Long donorId,
+                         Authentication auth, RedirectAttributes redirect) {
         AppUser patient = users.byEmail(auth.getName());
-        if (!patient.hasRole(Role.PATIENT)) return "redirect:/access-denied";
+        if (!patient.hasRole(Role.PATIENT)) {
+            patient.addRole(Role.PATIENT);
+            users.saveProfile(patient);
+        }
+        if (donorId != null) {
+            try {
+                AppUser donor = users.byId(donorId);
+                BloodRequest saved = requests.createWithDonor(request, patient, donor);
+                redirect.addFlashAttribute("success", "Blood request created and matched with donor " + donor.getFullName() + "! Contact details are visible below.");
+                return "redirect:/requests/" + saved.getId();
+            } catch (RuntimeException ex) {
+                redirect.addFlashAttribute("error", ex.getMessage());
+            }
+        }
         requests.create(request, patient);
         redirect.addFlashAttribute("success", "Blood request created.");
-        return "redirect:/dashboard";
+        return "redirect:/dashboard?tab=patient";
     }
 
     @PostMapping("/requests/{id}/accept")
@@ -48,15 +74,72 @@ public class RequestController {
             return "redirect:/requests/" + id;
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
-            return "redirect:/dashboard";
+            return "redirect:/dashboard?tab=donor";
         }
     }
 
     @GetMapping("/requests/{id}")
     public String detail(@PathVariable Long id, Authentication auth, Model model) {
         AppUser actor = users.byEmail(auth.getName());
-        model.addAttribute("request", requests.getAuthorized(id, actor));
+        BloodRequest req = requests.getAuthorized(id, actor);
+        boolean isOwner = req.getPatient().getId().equals(actor.getId());
+        boolean isDonor = req.getAcceptedDonor() != null && req.getAcceptedDonor().getId().equals(actor.getId());
+        boolean isAdmin = actor.hasRole(Role.ADMIN);
+        model.addAttribute("request", req);
+        model.addAttribute("isOwner", isOwner);
+        model.addAttribute("isDonor", isDonor);
+        model.addAttribute("isAdmin", isAdmin);
+        model.addAttribute("currentUser", actor);
         return "request-detail";
+    }
+
+    @GetMapping("/requests/{id}/edit")
+    public String editForm(@PathVariable Long id, Authentication auth, Model model, RedirectAttributes redirect) {
+        AppUser actor = users.byEmail(auth.getName());
+        try {
+            BloodRequest request = requests.getAuthorized(id, actor);
+            boolean isOwner = request.getPatient().getId().equals(actor.getId());
+            if (!isOwner && !actor.hasRole(Role.ADMIN)) {
+                redirect.addFlashAttribute("error", "You can only edit your own blood requests.");
+                return "redirect:/dashboard?tab=patient";
+            }
+            model.addAttribute("request", request);
+            model.addAttribute("groups", BloodGroup.values());
+            model.addAttribute("statuses", RequestStatus.values());
+            return "request-edit";
+        } catch (RuntimeException ex) {
+            redirect.addFlashAttribute("error", ex.getMessage());
+            return "redirect:/dashboard?tab=patient";
+        }
+    }
+
+    @PostMapping("/requests/{id}/edit")
+    public String update(@PathVariable Long id, @ModelAttribute BloodRequest form, Authentication auth, RedirectAttributes redirect) {
+        try {
+            AppUser actor = users.byEmail(auth.getName());
+            requests.updateByUser(id, actor, form);
+            redirect.addFlashAttribute("success", "Blood request updated successfully.");
+            return "redirect:/requests/" + id;
+        } catch (RuntimeException ex) {
+            redirect.addFlashAttribute("error", ex.getMessage());
+            return "redirect:/requests/" + id + "/edit";
+        }
+    }
+
+    @PostMapping("/requests/{id}/close")
+    public String close(@PathVariable Long id,
+                        @RequestParam(required = false) String from,
+                        Authentication auth, RedirectAttributes redirect) {
+        try {
+            requests.closeRequest(id, users.byEmail(auth.getName()));
+            redirect.addFlashAttribute("success", "Blood request closed successfully.");
+        } catch (RuntimeException ex) {
+            redirect.addFlashAttribute("error", ex.getMessage());
+        }
+        if ("dashboard".equalsIgnoreCase(from)) {
+            return "redirect:/dashboard?tab=patient";
+        }
+        return "redirect:/requests/" + id;
     }
 
     @PostMapping("/requests/{id}/status")

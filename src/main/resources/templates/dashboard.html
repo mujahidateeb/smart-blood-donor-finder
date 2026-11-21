@@ -140,11 +140,24 @@
                     <b th:text="${r.bloodGroup}">O_POSITIVE</b>
                     <p th:text="${r.city} + ' · ' + ${r.area} + ' · ' + ${r.unitsRequired} + ' unit(s)' + ' · Hospital: ' + ${r.hospitalAddress}"></p>
                     <small>
-                        Status: <span class="status" th:text="${r.status}"></span>
+                        Status: <span class="status" th:classappend="'status-' + ${#strings.toLowerCase(r.status)}" th:text="${r.status}"></span>
                         <span th:if="${r.status.name() == 'ACCEPTED'}" style="color:#216b37;font-weight:700;"> — Matched with donor!</span>
                     </small>
                 </div>
-                <a th:href="@{'/requests/' + ${r.id}}" class="btn secondary">View details →</a>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <a th:href="@{'/requests/' + ${r.id}}" class="btn secondary">View details →</a>
+                    <a th:if="${r.status.name() == 'OPEN' or r.status.name() == 'ACCEPTED'}"
+                       th:href="@{'/requests/' + ${r.id} + '/edit'}"
+                       class="btn secondary">✏️ Update</a>
+                    <form th:if="${r.status.name() == 'OPEN' or r.status.name() == 'ACCEPTED'}"
+                          th:action="@{'/requests/' + ${r.id} + '/close'}"
+                          method="post"
+                          style="margin:0;"
+                          onsubmit="return confirm('Are you sure you want to close this blood request?');">
+                        <input type="hidden" name="from" value="dashboard">
+                        <button type="submit" class="btn secondary" style="color:var(--red);">✖ Close request</button>
+                    </form>
+                </div>
             </div>
         </div>
 

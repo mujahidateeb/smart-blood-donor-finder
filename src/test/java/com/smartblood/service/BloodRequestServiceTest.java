@@ -110,4 +110,112 @@ class BloodRequestServiceTest {
         );
         assertTrue(ex.getMessage().contains("Only donors can accept"));
     }
+
+    @Test
+    void updateByUser_success() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+        when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        BloodRequest updatedData = new BloodRequest();
+        updatedData.setBloodGroup(BloodGroup.A_POSITIVE);
+        updatedData.setCity("Mysuru");
+        updatedData.setArea("Vijayanagar");
+        updatedData.setUnitsRequired(3);
+        updatedData.setHospitalAddress("Apollo BGS Hospital");
+        updatedData.setMessage("Need 3 units urgently");
+
+        BloodRequest result = bloodRequestService.updateByUser(100L, dualRoleUser, updatedData);
+        assertEquals(BloodGroup.A_POSITIVE, result.getBloodGroup());
+        assertEquals("Mysuru", result.getCity());
+        assertEquals("Vijayanagar", result.getArea());
+        assertEquals(3, result.getUnitsRequired());
+        assertEquals("Apollo BGS Hospital", result.getHospitalAddress());
+        assertEquals("Need 3 units urgently", result.getMessage());
+        verify(requestRepository).save(bloodRequest);
+    }
+
+    @Test
+    void updateByUser_unauthorized() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+
+        AppUser stranger = new AppUser();
+        stranger.setId(99L);
+        stranger.setEmail("stranger@example.com");
+
+        BloodRequest updatedData = new BloodRequest();
+        updatedData.setBloodGroup(BloodGroup.A_POSITIVE);
+        updatedData.setCity("Mysuru");
+        updatedData.setHospitalAddress("Apollo Hospital");
+        updatedData.setUnitsRequired(2);
+
+        assertThrows(SecurityException.class, () ->
+                bloodRequestService.updateByUser(100L, stranger, updatedData)
+        );
+    }
+
+    @Test
+    void closeRequest_success() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+        when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        BloodRequest closed = bloodRequestService.closeRequest(100L, dualRoleUser);
+        assertEquals(RequestStatus.CLOSED, closed.getStatus());
+        verify(requestRepository).save(bloodRequest);
+    }
+
+    @Test
+    void closeRequest_unauthorized() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+
+        AppUser stranger = new AppUser();
+        stranger.setId(99L);
+        stranger.setEmail("stranger@example.com");
+
+        assertThrows(SecurityException.class, () ->
+                bloodRequestService.closeRequest(100L, stranger)
+        );
+    }
+
+    @Test
+    void acceptDonorForRequest_success() {
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+        when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        BloodRequest accepted = bloodRequestService.acceptDonorForRequest(100L, anotherDonor, dualRoleUser);
+        assertEquals(RequestStatus.ACCEPTED, accepted.getStatus());
+        assertEquals(anotherDonor, accepted.getAcceptedDonor());
+        verify(requestRepository).save(bloodRequest);
+    }
+
+    @Test
+    void acceptDonorForRequest_rejectNonDonor() {
+        AppUser patientOnly = new AppUser();
+        patientOnly.setId(30L);
+        patientOnly.setRole(Role.PATIENT);
+        patientOnly.setBloodGroup(BloodGroup.O_POSITIVE);
+
+        when(requestRepository.findById(100L)).thenReturn(Optional.of(bloodRequest));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                bloodRequestService.acceptDonorForRequest(100L, patientOnly, dualRoleUser)
+        );
+        assertTrue(ex.getMessage().contains("not registered as a donor"));
+    }
+
+    @Test
+    void createWithDonor_success() {
+        when(requestRepository.save(any(BloodRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        BloodRequest req = new BloodRequest();
+        req.setBloodGroup(BloodGroup.O_POSITIVE);
+        req.setCity("Bengaluru");
+        req.setHospitalAddress("City Hospital");
+        req.setUnitsRequired(1);
+
+        BloodRequest created = bloodRequestService.createWithDonor(req, dualRoleUser, anotherDonor);
+        assertEquals(dualRoleUser, created.getPatient());
+        assertEquals(anotherDonor, created.getAcceptedDonor());
+        assertEquals(RequestStatus.ACCEPTED, created.getStatus());
+        verify(requestRepository).save(req);
+    }
 }

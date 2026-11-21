@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Update blood request - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="form-wrap">
+    <section class="form-card wide">
+        <div th:replace="fragments :: alerts"></div>
+        <span class="eyebrow">UPDATE DETAILS</span>
+        <h1>Update blood request</h1>
+        <p class="muted">Modify the details of your emergency blood request below.</p>
+
+        <form th:action="@{'/requests/' + ${request.id} + '/edit'}" th:object="${request}" method="post">
+            <div class="form-grid">
+                <div>
+                    <label>Required blood group</label>
+                    <select th:field="*{bloodGroup}" required>
+                        <option th:each="g : ${groups}" th:value="${g}" th:text="${g}"></option>
+                    </select>
+                </div>
+                <div>
+                    <label>Units required</label>
+                    <input type="number" min="1" max="10" th:field="*{unitsRequired}" required>
+                </div>
+                <div>
+                    <label>City</label>
+                    <input th:field="*{city}" required placeholder="e.g. Mysuru">
+                </div>
+                <div>
+                    <label>Area</label>
+                    <input th:field="*{area}" placeholder="e.g. Vijayanagar">
+                </div>
+                <div class="span-2">
+                    <label>Hospital / blood bank address</label>
+                    <input th:field="*{hospitalAddress}" required placeholder="Hospital name, room/ward, address">
+                </div>
+                <div class="span-2">
+                    <label>Additional message</label>
+                    <textarea th:field="*{message}" rows="3" placeholder="Patient condition, timing, other useful details"></textarea>
+                </div>
+                <div>
+                    <label>Needed by (optional)</label>
+                    <input type="datetime-local" th:field="*{neededBy}">
+                </div>
+                <div>
+                    <label>Request status</label>
+                    <select th:field="*{status}">
+                        <option th:each="s : ${statuses}" th:if="${s.name() != 'ACCEPTED'}" th:value="${s}" th:text="${s}"></option>
+                        <option th:if="${request.status.name() == 'ACCEPTED'}" th:value="${request.status}" th:text="${request.status}"></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="actions" style="margin-top:24px;">
+                <button type="submit" class="btn primary">Save changes</button>
+                <a th:href="@{'/requests/' + ${request.id}}" class="btn secondary">Cancel</a>
+            </div>
+        </form>
+    </section>
+</main>
+</body>
+</html>

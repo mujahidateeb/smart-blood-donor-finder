@@ -1,9 +1,61 @@
-<!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Emergency request</title><link rel="stylesheet" href="/css/style.css"></head>
-<body><div th:replace="fragments :: nav"></div><main class="form-wrap"><section class="form-card wide"><span class="eyebrow">URGENT HELP</span><h1>Create blood request</h1><p class="muted">Provide accurate details so potential donors can respond.</p>
-<form th:action="@{/requests}" th:object="${request}" method="post"><div class="form-grid">
-<div><label>Required blood group</label><select th:field="*{bloodGroup}" required><option value="">Select</option><option th:each="g : ${groups}" th:value="${g}" th:text="${g}"></option></select></div>
-<div><label>Units required</label><input type="number" min="1" max="10" th:field="*{unitsRequired}" required></div>
-<div><label>City</label><input th:field="*{city}" required></div><div><label>Area</label><input th:field="*{area}"></div>
-<div class="span-2"><label>Hospital / blood bank address</label><input th:field="*{hospitalAddress}" required></div>
-<div class="span-2"><label>Additional message</label><textarea th:field="*{message}" rows="3" placeholder="Patient condition, timing, other useful details"></textarea></div>
-</div><button class="btn primary full">Publish emergency request</button></form></section></main></body></html>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Emergency request - Smart Blood Donor Finder</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div th:replace="fragments :: nav"></div>
+
+<main class="form-wrap">
+    <section class="form-card wide">
+        <div th:replace="fragments :: alerts"></div>
+        <span class="eyebrow">URGENT HELP</span>
+        <h1>Create blood request</h1>
+        <p class="muted">Provide accurate details so potential donors can respond.</p>
+
+        <div th:if="${targetDonor != null}" class="alert info" style="margin-bottom:20px;">
+            <strong>Accepting Donor: </strong>
+            <span th:text="${targetDonor.fullName} + ' (' + ${targetDonor.bloodGroup} + ' · ' + ${targetDonor.city} + (${targetDonor.area != null and !targetDonor.area.empty} ? ' · ' + ${targetDonor.area} : '') + ')'"></span>
+            <p style="margin:6px 0 0;font-size:13px;">Please enter hospital details below. Submitting will immediately link this request with the donor and reveal contact details.</p>
+        </div>
+
+        <form th:action="@{/requests}" th:object="${request}" method="post">
+            <input type="hidden" name="donorId" th:if="${targetDonor != null}" th:value="${targetDonor.id}">
+            <div class="form-grid">
+                <div>
+                    <label>Required blood group</label>
+                    <select th:field="*{bloodGroup}" required>
+                        <option value="">Select</option>
+                        <option th:each="g : ${groups}" th:value="${g}" th:text="${g}"></option>
+                    </select>
+                </div>
+                <div>
+                    <label>Units required</label>
+                    <input type="number" min="1" max="10" th:field="*{unitsRequired}" required>
+                </div>
+                <div>
+                    <label>City</label>
+                    <input th:field="*{city}" required placeholder="e.g. Mysuru">
+                </div>
+                <div>
+                    <label>Area</label>
+                    <input th:field="*{area}" placeholder="e.g. Vijayanagar">
+                </div>
+                <div class="span-2">
+                    <label>Hospital / blood bank address</label>
+                    <input th:field="*{hospitalAddress}" required placeholder="Hospital name, department/room, address">
+                </div>
+                <div class="span-2">
+                    <label>Additional message</label>
+                    <textarea th:field="*{message}" rows="3" placeholder="Patient condition, timing, other useful details"></textarea>
+                </div>
+            </div>
+            <button class="btn primary full" th:text="${targetDonor != null} ? 'Confirm & Connect with Donor' : 'Publish emergency request'">Publish emergency request</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

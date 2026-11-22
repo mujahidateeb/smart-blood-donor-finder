@@ -179,4 +179,52 @@ class RequestControllerTest {
 
         verify(bloodRequestService).reject(15L, donor);
     }
+
+    @Test
+    @WithMockUser(username = "donor@example.com", roles = "DONOR")
+    void status_updateStatusSuccess() throws Exception {
+        AppUser donor = new AppUser();
+        donor.setId(5L);
+        donor.setEmail("donor@example.com");
+        donor.setRole(Role.DONOR);
+
+        when(userService.byEmail("donor@example.com")).thenReturn(donor);
+
+        mockMvc.perform(post("/requests/15/status")
+                        .with(csrf())
+                        .param("status", "COMPLETED")
+                        .param("from", "donor"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/requests/15?from=donor"))
+                .andExpect(flash().attributeExists("success"));
+
+        verify(bloodRequestService).updateStatus(15L, donor, RequestStatus.COMPLETED);
+    }
+
+    @Test
+    @WithMockUser(username = "patient@example.com", roles = "PATIENT")
+    void detail_withFromQueryParam_setsBackTab() throws Exception {
+        AppUser patient = new AppUser();
+        patient.setId(1L);
+        patient.setEmail("patient@example.com");
+        patient.setRole(Role.PATIENT);
+
+        BloodRequest req = new BloodRequest();
+        req.setId(10L);
+        req.setPatient(patient);
+        req.setStatus(RequestStatus.ACCEPTED);
+
+        when(userService.byEmail("patient@example.com")).thenReturn(patient);
+        when(bloodRequestService.getAuthorized(10L, patient)).thenReturn(req);
+
+        mockMvc.perform(get("/requests/10").param("from", "donor"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("request-detail"))
+                .andExpect(model().attribute("backTab", "donor"));
+
+        mockMvc.perform(get("/requests/10").param("from", "patient"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("request-detail"))
+                .andExpect(model().attribute("backTab", "patient"));
+    }
 }

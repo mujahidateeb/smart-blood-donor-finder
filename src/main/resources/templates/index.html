@@ -1,12 +1,19 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Smart Blood Donor Finder</title><link rel="stylesheet" href="/css/style.css"></head>
 <body><div th:replace="fragments :: nav"></div>
 <main class="hero">
   <div class="hero-copy"><span class="eyebrow">DONATE BLOOD • SAVE LIVES</span>
     <h1>Find a blood donor.<br><em>Make a difference.</em></h1>
     <p>Connect with potential blood donors in your area. Search by blood group and location, or create an emergency request.</p>
-    <div class="actions"><a class="btn primary" href="/register">Get started</a><a class="btn secondary" href="/login">Sign in</a></div>
+    <div class="actions" sec:authorize="isAnonymous()">
+      <a class="btn primary" href="/register">Get started</a>
+      <a class="btn secondary" href="/login">Sign in</a>
+    </div>
+    <div class="actions" sec:authorize="isAuthenticated()">
+      <a class="btn primary" href="/dashboard">Go to dashboard</a>
+    </div>
   </div>
   <div class="hero-art"><div class="blood-drop">+</div><div class="art-caption">A little help can<br>save a life.</div></div>
 </main>

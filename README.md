@@ -34,12 +34,6 @@ A Java 11 / Spring Boot 2.7 / Maven application that helps patients find potenti
    ```
 5. Open `http://localhost:8080`.
 
-## Cloudflare Static URL Setup
-Expose your local server to the internet using a persistent, secure static URL (e.g. `https://blood.yourdomain.com`) without port forwarding:
-- See [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) for complete instructions.
-- Run `start-tunnel.bat` (or `start-app-and-tunnel.bat` to launch both Spring Boot and Tunnel together).
-- Configure your Cloudflare Tunnel Token in `.env` (`CLOUDFLARE_TUNNEL_TOKEN=...`).
-
 ## First user / admin
 Register through `/register`. The public registration page allows DONOR and PATIENT roles only.
 For local development, create an admin account manually by changing the role in MySQL after registering:

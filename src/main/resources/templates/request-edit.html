@@ -16,7 +16,8 @@
         <h1>Update blood request</h1>
         <p class="muted">Modify the details of your emergency blood request below.</p>
 
-        <form th:action="@{'/requests/' + ${request.id} + '/edit'}" th:object="${request}" method="post">
+        <form th:action="@{/requests/{id}/edit(id=${request.id}, from=${from})}" th:object="${request}" method="post">
+            <input type="hidden" name="from" th:if="${from != null}" th:value="${from}">
             <div class="form-grid">
                 <div>
                     <label>Required blood group</label>
@@ -59,7 +60,7 @@
 
             <div class="actions" style="margin-top:24px;">
                 <button type="submit" class="btn primary">Save changes</button>
-                <a th:href="@{'/requests/' + ${request.id}}" class="btn secondary">Cancel</a>
+                <a th:href="@{/requests/{id}(id=${request.id}, from=${from})}" class="btn secondary">Cancel</a>
             </div>
         </form>
     </section>

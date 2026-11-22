@@ -67,11 +67,14 @@ public class RequestController {
     }
 
     @PostMapping("/requests/{id}/accept")
-    public String accept(@PathVariable Long id, Authentication auth, RedirectAttributes redirect) {
+    public String accept(@PathVariable Long id,
+                         @RequestParam(required = false) String from,
+                         Authentication auth, RedirectAttributes redirect) {
         try {
             requests.accept(id, users.byEmail(auth.getName()));
             redirect.addFlashAttribute("success", "You accepted the request. Patient contact details are now available on the request page.");
-            return "redirect:/requests/" + id;
+            String targetFrom = (from != null && !from.isBlank()) ? from : "donor";
+            return "redirect:/requests/" + id + "?from=" + targetFrom;
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
             return "redirect:/dashboard?tab=donor";
@@ -79,33 +82,56 @@ public class RequestController {
     }
 
     @PostMapping("/requests/{id}/reject")
-    public String reject(@PathVariable Long id, Authentication auth, RedirectAttributes redirect) {
+    public String reject(@PathVariable Long id,
+                         @RequestParam(required = false) String from,
+                         Authentication auth, RedirectAttributes redirect) {
         try {
             requests.reject(id, users.byEmail(auth.getName()));
             redirect.addFlashAttribute("success", "You rejected the blood request.");
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
         }
-        return "redirect:/dashboard?tab=donor";
+        String targetTab = "patient".equalsIgnoreCase(from) ? "patient" : "donor";
+        return "redirect:/dashboard?tab=" + targetTab;
     }
 
     @GetMapping("/requests/{id}")
-    public String detail(@PathVariable Long id, Authentication auth, Model model) {
+    public String detail(@PathVariable Long id,
+                         @RequestParam(required = false) String from,
+                         Authentication auth, Model model) {
         AppUser actor = users.byEmail(auth.getName());
         BloodRequest req = requests.getAuthorized(id, actor);
         boolean isOwner = req.getPatient().getId().equals(actor.getId());
         boolean isDonor = req.getAcceptedDonor() != null && req.getAcceptedDonor().getId().equals(actor.getId());
+        boolean isTargetDonor = req.getTargetDonor() != null && req.getTargetDonor().getId().equals(actor.getId());
         boolean isAdmin = actor.hasRole(Role.ADMIN);
         model.addAttribute("request", req);
         model.addAttribute("isOwner", isOwner);
         model.addAttribute("isDonor", isDonor);
         model.addAttribute("isAdmin", isAdmin);
         model.addAttribute("currentUser", actor);
+
+        String backTab = "patient";
+        if ("donor".equalsIgnoreCase(from)) {
+            backTab = "donor";
+        } else if ("patient".equalsIgnoreCase(from)) {
+            backTab = "patient";
+        } else if (isDonor || isTargetDonor) {
+            backTab = "donor";
+        } else if (isOwner) {
+            backTab = "patient";
+        } else if (actor.hasRole(Role.DONOR) && !actor.hasRole(Role.PATIENT)) {
+            backTab = "donor";
+        }
+        model.addAttribute("backTab", backTab);
+        model.addAttribute("from", from);
         return "request-detail";
     }
 
     @GetMapping("/requests/{id}/edit")
-    public String editForm(@PathVariable Long id, Authentication auth, Model model, RedirectAttributes redirect) {
+    public String editForm(@PathVariable Long id,
+                           @RequestParam(required = false) String from,
+                           Authentication auth, Model model, RedirectAttributes redirect) {
         AppUser actor = users.byEmail(auth.getName());
         try {
             BloodRequest request = requests.getAuthorized(id, actor);
@@ -117,6 +143,7 @@ public class RequestController {
             model.addAttribute("request", request);
             model.addAttribute("groups", BloodGroup.values());
             model.addAttribute("statuses", RequestStatus.values());
+            model.addAttribute("from", from);
             return "request-edit";
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
@@ -125,15 +152,25 @@ public class RequestController {
     }
 
     @PostMapping("/requests/{id}/edit")
-    public String update(@PathVariable Long id, @ModelAttribute BloodRequest form, Authentication auth, RedirectAttributes redirect) {
+    public String update(@PathVariable Long id,
+                         @RequestParam(required = false) String from,
+                         @ModelAttribute BloodRequest form, Authentication auth, RedirectAttributes redirect) {
         try {
             AppUser actor = users.byEmail(auth.getName());
             requests.updateByUser(id, actor, form);
             redirect.addFlashAttribute("success", "Blood request updated successfully.");
-            return "redirect:/requests/" + id;
+            String redirectUrl = "redirect:/requests/" + id;
+            if (from != null && !from.isBlank()) {
+                redirectUrl += "?from=" + from;
+            }
+            return redirectUrl;
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
-            return "redirect:/requests/" + id + "/edit";
+            String redirectUrl = "redirect:/requests/" + id + "/edit";
+            if (from != null && !from.isBlank()) {
+                redirectUrl += "?from=" + from;
+            }
+            return redirectUrl;
         }
     }
 
@@ -150,11 +187,17 @@ public class RequestController {
         if ("dashboard".equalsIgnoreCase(from)) {
             return "redirect:/dashboard?tab=patient";
         }
-        return "redirect:/requests/" + id;
+        String redirectUrl = "redirect:/requests/" + id;
+        if (from != null && !from.isBlank()) {
+            redirectUrl += "?from=" + from;
+        }
+        return redirectUrl;
     }
 
     @PostMapping("/requests/{id}/status")
-    public String status(@PathVariable Long id, @RequestParam RequestStatus status,
+    public String status(@PathVariable Long id,
+                         @RequestParam RequestStatus status,
+                         @RequestParam(required = false) String from,
                          Authentication auth, RedirectAttributes redirect) {
         try {
             requests.updateStatus(id, users.byEmail(auth.getName()), status);
@@ -162,6 +205,10 @@ public class RequestController {
         } catch (RuntimeException ex) {
             redirect.addFlashAttribute("error", ex.getMessage());
         }
-        return "redirect:/requests/" + id;
+        String redirectUrl = "redirect:/requests/" + id;
+        if (from != null && !from.isBlank()) {
+            redirectUrl += "?from=" + from;
+        }
+        return redirectUrl;
     }
 }

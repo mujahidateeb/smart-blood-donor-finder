@@ -54,7 +54,7 @@
         <div th:if="${isOwner or isAdmin}" class="actions" style="margin-top:24px;flex-wrap:wrap;">
             <!-- Update Request Form button -->
             <a th:if="${request.status.name() == 'OPEN' or request.status.name() == 'ACCEPTED'}"
-               th:href="@{'/requests/' + ${request.id} + '/edit'}"
+               th:href="@{/requests/{id}/edit(id=${request.id}, from=${from != null ? from : backTab})}"
                class="btn secondary">✏️ Update request</a>
 
             <!-- Close Request button -->
@@ -63,6 +63,7 @@
                   method="post"
                   style="margin:0;"
                   onsubmit="return confirm('Are you sure you want to close this blood request?');">
+                <input type="hidden" name="from" th:value="${from != null ? from : backTab}">
                 <button type="submit" class="btn secondary" style="color:var(--red);">✖ Close request</button>
             </form>
 
@@ -71,29 +72,35 @@
                   th:action="@{'/requests/' + ${request.id} + '/status'}"
                   method="post"
                   style="margin:0;">
-                <button name="status" value="COMPLETED" class="btn primary">✓ Mark completed</button>
+                <input type="hidden" name="status" value="COMPLETED">
+                <input type="hidden" name="from" th:value="${from != null ? from : backTab}">
+                <button type="submit" class="btn primary">✓ Mark completed</button>
             </form>
         </div>
 
         <!-- Action buttons for Target Donor when reviewing an Open request -->
         <div th:if="${currentUser != null and request.targetDonor != null and request.targetDonor.id == currentUser.id and request.status.name() == 'OPEN'}" class="actions" style="margin-top:24px;">
             <form th:action="@{'/requests/' + ${request.id} + '/accept'}" method="post" style="margin:0;">
-                <button class="btn primary">Accept request</button>
+                <input type="hidden" name="from" th:value="${from != null ? from : backTab}">
+                <button type="submit" class="btn primary">Accept request</button>
             </form>
             <form th:action="@{'/requests/' + ${request.id} + '/reject'}" method="post" style="margin:0;" onsubmit="return confirm('Are you sure you want to reject this blood request?');">
-                <button class="btn secondary" style="color:var(--red);">Reject request</button>
+                <input type="hidden" name="from" th:value="${from != null ? from : backTab}">
+                <button type="submit" class="btn secondary" style="color:var(--red);">Reject request</button>
             </form>
         </div>
 
         <!-- Action buttons for Assigned Donor (if donor is viewing and request is accepted) -->
         <div th:if="${isDonor and !isOwner and request.status.name() == 'ACCEPTED'}" class="actions" style="margin-top:24px;">
             <form th:action="@{'/requests/' + ${request.id} + '/status'}" method="post" style="margin:0;">
-                <button name="status" value="COMPLETED" class="btn primary">✓ Mark completed</button>
+                <input type="hidden" name="status" value="COMPLETED">
+                <input type="hidden" name="from" th:value="${from != null ? from : backTab}">
+                <button type="submit" class="btn primary">✓ Mark completed</button>
             </form>
         </div>
     </div>
 
-    <a href="/dashboard?tab=patient">← Back to dashboard</a>
+    <a th:href="@{'/dashboard?tab=' + ${backTab != null ? backTab : 'patient'}}">← Back to dashboard</a>
 </main>
 </body>
 </html>

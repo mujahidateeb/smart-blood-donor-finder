@@ -22,6 +22,13 @@ class HomeControllerTest {
     private CustomUserDetailsService userDetailsService;
 
     @Test
+    void getHome_returnsIndexView() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("index"));
+    }
+
+    @Test
     void getLogin_returnsLoginView() throws Exception {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
